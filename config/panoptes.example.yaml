@@ -44,3 +44,12 @@ scope:
 auth:
   headers: {}      # e.g. {"Authorization": "Bearer <token>"}
   cookies: {}      # e.g. {"session": "<session-value>"}
+
+# Optional port-scan recon (used by `hunt` when enabled, or the `portscan`
+# command). Uses nmap if installed, otherwise a built-in TCP connect scan.
+portscan:
+  enabled: false
+  ports: []        # empty = curated common ports; e.g. [22, 80, 443, 8080]
+  timeout: 1.5
+  concurrency: 100
+  use_nmap: true

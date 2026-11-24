@@ -46,3 +46,20 @@ def test_brain_stats_empty(tmp_path, capsys):
     assert rc == 0
     out = capsys.readouterr().out
     assert "runs: 0" in out
+
+
+def test_portscan_without_authorization_refuses(capsys):
+    rc = main(["portscan", "127.0.0.1", "--allow-private"])
+    assert rc == 3
+    assert "authoriz" in capsys.readouterr().err.lower()
+
+
+def test_portscan_runs_and_outputs_json(capsys):
+    # Port 1 is (almost certainly) closed; just assert it runs and emits JSON.
+    rc = main(["portscan", "127.0.0.1", "--i-am-authorized", "--allow-private",
+               "--no-nmap", "--ports", "1", "--format", "json"])
+    assert rc == 0
+    import json
+    data = json.loads(capsys.readouterr().out)
+    assert data["host"] == "127.0.0.1"
+    assert data["method"] == "connect"

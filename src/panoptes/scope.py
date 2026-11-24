@@ -92,6 +92,24 @@ class Scope:
                 return True
         return False
 
+    def check_host(self, host: str) -> str:
+        """Validate a bare host (used by the port scanner, not just URLs).
+
+        Raises OutOfScopeError if the host is out of scope or resolves to a
+        private/internal address (unless allow_private).
+        """
+        host = host.strip().strip("[]")
+        if not host:
+            raise OutOfScopeError("empty host")
+        if not self.host_allowed(host):
+            raise OutOfScopeError(f"host not in scope: {host}")
+        if not self.allow_private and self.is_private_host(host):
+            raise OutOfScopeError(
+                f"host resolves to a private/internal address: {host} "
+                "(set allow_private=True to override)"
+            )
+        return host
+
     def check_url(self, url: str) -> Target:
         """Validate a URL against scope, returning a normalized Target.
 
@@ -103,13 +121,7 @@ class Scope:
         host = parts.hostname
         if not host:
             raise OutOfScopeError(f"no host in url: {url!r}")
-        if not self.host_allowed(host):
-            raise OutOfScopeError(f"host not in scope: {host}")
-        if not self.allow_private and self.is_private_host(host):
-            raise OutOfScopeError(
-                f"host resolves to a private/internal address: {host} "
-                "(set allow_private=True to override)"
-            )
+        self.check_host(host)
         port = parts.port or (443 if parts.scheme == "https" else 80)
         return Target(
             url=url,

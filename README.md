@@ -45,6 +45,12 @@ architecture** that makes new checks a few lines of code.
   active checks), a **validation gate** that scores findings and drops likely
   false positives, **exploit-chain inference**, and a persistent **brain** that
   diffs each run against the last (retest workflow).
+- 🔭 **Port-scan recon** — optional TCP port scan (uses **nmap** when installed,
+  with a built-in connect-scan fallback), flagging exposed services, plus a
+  **recommended-next-steps** engine that turns findings + open ports into a
+  prioritized, tool-by-tool checklist.
+- 🔐 **Authenticated scanning** — session cookies / headers, bound to the target
+  host and kept out of logs and reports.
 - 🤖 **Pluggable AI** — optional payload generation via OpenAI-compatible,
   Anthropic, or local **Ollama** models, with automatic failover. Runs fully
   without any API key.
@@ -134,6 +140,23 @@ secrets — never logged or written into reports. You can also set them under an
 `auth:` block in the config file. Grab a valid session from your browser's
 devtools (Application → Cookies, or a request's `Authorization` header) for an
 account you're authorized to use.
+
+### Port scan & recommended next steps
+
+```bash
+# Standalone port scan (nmap if installed, else a built-in connect scan)
+panoptes portscan example.com --i-am-authorized --ports "22,80,443,3306,6379,8000-8100"
+
+# Fold a port scan into a hunt; the report gains an "Open ports" table and a
+# prioritized "Recommended next steps" checklist (XSS PoC, sqlmap, nuclei, ffuf…)
+panoptes hunt https://example.com --i-am-authorized --port-scan
+```
+
+Port scanning is single-target, scope-enforced, non-aggressive (TCP connect,
+`nmap -sT -sV --version-light -T3`), and still gated by `--i-am-authorized`.
+Exposed datastores (Redis, MongoDB, Elasticsearch, databases) and risky
+services are flagged with appropriate severity. The recommendations are
+**advisory** — authorized verification steps to do next, not automated exploits.
 
 Or drive everything from a config file:
 

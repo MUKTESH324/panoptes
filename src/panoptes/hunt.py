@@ -25,6 +25,8 @@ from .http_client import ScopedHttpClient
 from .models import Finding, ScanResult
 from .planner import Plan, Planner, recon_signals
 from .plugins.base import ScanContext, select
+from .portscan import PortScanner, PortScanResult
+from .recommend import Recommendation, recommend
 from .scope import Scope
 from .utils.dedupe import dedupe_findings
 from .validation import ValidationGate, ValidationResult, Verdict
@@ -42,6 +44,8 @@ class HuntResult:
     verdicts: List[Verdict] = field(default_factory=list)
     chains: List[Chain] = field(default_factory=list)
     diff: Optional[RunDiff] = None
+    ports: Optional["PortScanResult"] = None
+    recommendations: List["Recommendation"] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     meta: dict = field(default_factory=dict)
 
@@ -70,6 +74,8 @@ class HuntResult:
             ],
             "chains": [c.to_dict() for c in self.chains],
             "diff": self.diff.to_dict() if self.diff else None,
+            "ports": self.ports.to_dict() if self.ports else None,
+            "recommendations": [r.to_dict() for r in self.recommendations],
             "errors": self.errors,
             "meta": self.meta,
         }
@@ -147,6 +153,23 @@ class Hunt:
 
         await provider.aclose()
 
+        # Optional port-scan recon (same authorization + scope rules).
+        if self.config.portscan.enabled:
+            scanner = PortScanner(
+                self.scope,
+                timeout=self.config.portscan.timeout,
+                concurrency=self.config.portscan.concurrency,
+                use_nmap=self.config.portscan.use_nmap,
+            )
+            host = _hostname(self.config.target)
+            try:
+                port_result = await scanner.scan(host, self.config.portscan.ports or None)
+                result.ports = port_result
+                result.meta["portscan_method"] = port_result.method
+                raw.extend(port_result.to_findings())
+            except Exception as exc:  # noqa: BLE001
+                result.errors.append(f"port scan failed: {exc}")
+
         findings = dedupe_findings(raw)
 
         # Validation gate.
@@ -158,6 +181,9 @@ class Hunt:
         kept = validation.kept
         # Exploit chains built from kept findings.
         result.chains = ChainBuilder().build(kept)
+
+        # Recommended next steps from findings + open ports.
+        result.recommendations = recommend(kept, result.ports)
 
         # Persist + diff.
         if self.brain is not None:

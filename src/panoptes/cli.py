@@ -15,6 +15,7 @@ from .hunt import Hunt
 from .models import Severity
 from .payloads import vuln_types
 from .plugins.base import discover
+from .portscan import PortScanner, parse_ports
 from .reporting import render
 from .reporting.hunt import render_hunt
 from .scope import AuthorizationError, OutOfScopeError, Scope
@@ -107,12 +108,33 @@ def build_parser() -> argparse.ArgumentParser:
                    help="extra header sent on every request (repeatable)")
     h.add_argument("--cookie", "-b", action="append", default=[], metavar="'name=value'",
                    help="session cookie for authenticated scans (repeatable; 'a=1; b=2' also accepted)")
+    h.add_argument("--port-scan", action="store_true",
+                   help="include a port-scan recon step (nmap if available, else connect scan)")
+    h.add_argument("--ports", metavar="SPEC",
+                   help="ports to scan, e.g. '22,80,443,8000-8100' (default: common ports)")
+    h.add_argument("--no-nmap", action="store_true",
+                   help="force the built-in connect scan even if nmap is installed")
     h.add_argument("--ai-provider", choices=available_providers(),
                    help="enable an AI payload provider")
     h.add_argument("--ai-model", help="model name for the AI provider")
     h.add_argument("--fail-on", choices=[str(x) for x in Severity],
                    help="exit non-zero if any kept finding >= this severity")
     h.add_argument("-v", "--verbose", action="store_true")
+
+    # portscan (standalone recon)
+    ps = sub.add_parser("portscan", help="TCP port-scan recon (nmap if available, else connect scan)")
+    ps.add_argument("target", help="target host or URL")
+    ps.add_argument("--i-am-authorized", action="store_true",
+                    help="affirm you have explicit written permission to test the target")
+    ps.add_argument("--ports", metavar="SPEC",
+                    help="ports to scan, e.g. '22,80,443,8000-8100' (default: common ports)")
+    ps.add_argument("--scope", nargs="*", default=[], metavar="HOST",
+                    help="additional in-scope hosts/wildcards")
+    ps.add_argument("--allow-private", action="store_true",
+                    help="permit private/internal addresses (dangerous)")
+    ps.add_argument("--no-nmap", action="store_true", help="force the built-in connect scan")
+    ps.add_argument("--timeout", type=float, default=1.5, help="per-port connect timeout (connect scan)")
+    ps.add_argument("--format", default="table", choices=["table", "json"], help="output format")
 
     # brain
     b = sub.add_parser("brain", help="inspect the persistent scan memory")
@@ -160,6 +182,14 @@ def _load_config(args: argparse.Namespace) -> Config:
     cfg.scope.deny = list(dict.fromkeys(cfg.scope.deny + list(args.deny)))
     cfg.scope.allow_private = cfg.scope.allow_private or args.allow_private
     cfg.scope.authorized = cfg.scope.authorized or args.i_am_authorized
+
+    # Port-scan options (hunt only).
+    if getattr(args, "port_scan", False):
+        cfg.portscan.enabled = True
+    if getattr(args, "ports", None):
+        cfg.portscan.ports = parse_ports(args.ports)
+    if getattr(args, "no_nmap", False):
+        cfg.portscan.use_nmap = False
 
     # Authenticated-scan credentials.
     for raw in getattr(args, "header", None) or []:
@@ -298,6 +328,47 @@ def _cmd_hunt(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_portscan(args: argparse.Namespace) -> int:
+    from urllib.parse import urlsplit
+
+    raw = args.target
+    host = urlsplit(raw).hostname or raw
+    allow = list(dict.fromkeys([host] + list(args.scope)))
+    scope = Scope(allow=allow, allow_private=args.allow_private, authorized=args.i_am_authorized)
+    if not args.i_am_authorized:
+        print(
+            "error: port scanning requires --i-am-authorized (explicit permission to test).",
+            file=sys.stderr,
+        )
+        return 3
+
+    ports = parse_ports(args.ports) if args.ports else None
+    scanner = PortScanner(scope, timeout=args.timeout, use_nmap=not args.no_nmap)
+    try:
+        import asyncio
+
+        result = asyncio.run(scanner.scan(host, ports))
+    except OutOfScopeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+
+    if args.format == "json":
+        import json
+
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
+
+    print(f"# Port scan ({result.method}) — {result.host}")
+    if not result.open_ports:
+        print("  no common ports open")
+    for op in result.open_ports:
+        banner = f"  {op.banner}" if op.banner else ""
+        print(f"  {op.port:>5}/tcp  open   {op.service}{banner}")
+    for e in result.errors:
+        print(f"  ! {e}", file=sys.stderr)
+    return 0
+
+
 def _cmd_brain(args: argparse.Namespace) -> int:
     brain = Brain(args.brain)
     try:
@@ -368,6 +439,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _cmd_scan(args)
     if args.command == "hunt":
         return _cmd_hunt(args)
+    if args.command == "portscan":
+        return _cmd_portscan(args)
     if args.command == "brain":
         return _cmd_brain(args)
     if args.command == "plugins":

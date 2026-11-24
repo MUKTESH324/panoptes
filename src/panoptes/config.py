@@ -49,6 +49,15 @@ class ScopeConfig:
 
 
 @dataclass
+class PortScanConfig:
+    enabled: bool = False
+    ports: List[int] = field(default_factory=list)  # empty => curated default set
+    timeout: float = 1.5
+    concurrency: int = 100
+    use_nmap: bool = True
+
+
+@dataclass
 class AuthConfig:
     """Credentials for authenticated (behind-login) scanning.
 
@@ -76,6 +85,7 @@ class Config:
     ai: AIConfig = field(default_factory=AIConfig)
     scope: ScopeConfig = field(default_factory=ScopeConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
+    portscan: PortScanConfig = field(default_factory=PortScanConfig)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Config":
@@ -86,6 +96,7 @@ class Config:
             "ai": AIConfig,
             "scope": ScopeConfig,
             "auth": AuthConfig,
+            "portscan": PortScanConfig,
         }
         kwargs: Dict[str, Any] = {}
         for f in fields(cls):
