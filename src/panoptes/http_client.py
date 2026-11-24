@@ -18,7 +18,7 @@ from typing import Optional
 
 import httpx
 
-from .config import HttpConfig
+from .config import AuthConfig, HttpConfig
 from .scope import Scope
 
 
@@ -50,19 +50,42 @@ class RateLimiter:
 class ScopedHttpClient:
     """Async HTTP client that enforces scope and rate limits."""
 
-    def __init__(self, scope: Scope, config: Optional[HttpConfig] = None) -> None:
+    def __init__(
+        self,
+        scope: Scope,
+        config: Optional[HttpConfig] = None,
+        auth: Optional[AuthConfig] = None,
+        cookie_domain: Optional[str] = None,
+    ) -> None:
         self.scope = scope
         self.config = config or HttpConfig()
+        self.auth = auth or AuthConfig()
+        # Cookies are bound to this host so they never travel to another domain.
+        self.cookie_domain = cookie_domain
         self._limiter = RateLimiter(self.config.requests_per_second)
         self._sem = asyncio.Semaphore(self.config.max_concurrency)
         self._client: Optional[httpx.AsyncClient] = None
 
+    def _build_cookies(self) -> httpx.Cookies:
+        jar = httpx.Cookies()
+        for name, value in self.auth.cookies.items():
+            if self.cookie_domain:
+                jar.set(name, value, domain=self.cookie_domain, path="/")
+            else:
+                jar.set(name, value)
+        return jar
+
     async def __aenter__(self) -> "ScopedHttpClient":
+        headers = {"User-Agent": self.config.user_agent}
+        # Auth headers (e.g. Authorization) are added as client defaults. httpx
+        # strips the Authorization header on cross-origin redirects.
+        headers.update(self.auth.headers)
         self._client = httpx.AsyncClient(
             timeout=self.config.timeout,
             verify=self.config.verify_tls,
             follow_redirects=self.config.follow_redirects,
-            headers={"User-Agent": self.config.user_agent},
+            headers=headers,
+            cookies=self._build_cookies(),
         )
         return self
 

@@ -40,8 +40,14 @@ class Engine:
         result.meta["plugins"] = [p.name for p in self.plugins]
         provider: AIProvider = build_provider(self.config.ai)
         result.meta["ai_provider"] = provider.name
+        result.meta["authenticated"] = self.config.auth.active
 
-        async with ScopedHttpClient(self.scope, self.config.http) as client:
+        async with ScopedHttpClient(
+            self.scope,
+            self.config.http,
+            auth=self.config.auth,
+            cookie_domain=_hostname(self.config.target),
+        ) as client:
             crawler = Crawler(client, self.scope, self.config.crawl)
             try:
                 pages = await crawler.crawl(self.config.target)
@@ -87,3 +93,8 @@ def _default_allow(target: str) -> List[str]:
 def scan(config: Config, scope: Optional[Scope] = None) -> ScanResult:
     """Synchronous convenience wrapper around :meth:`Engine.run`."""
     return asyncio.run(Engine(config, scope).run())
+
+def _hostname(target: str) -> str:
+    from urllib.parse import urlsplit
+
+    return urlsplit(target).hostname or ""

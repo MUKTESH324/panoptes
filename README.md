@@ -115,6 +115,26 @@ A hunt report includes the attack plan and rationale, a validation summary
 (confirmed / needs-review / dropped false positives), inferred **exploit
 chains**, and a **diff** against the previous run.
 
+### Authenticated scanning (behind login)
+
+Pass a session cookie and/or headers so the crawler and every check run as a
+logged-in user. Both `scan` and `hunt` accept them:
+
+```bash
+# Session cookie (repeatable, or "a=1; b=2" in one flag)
+panoptes hunt https://app.example.com --i-am-authorized -b "session=YOUR_SESSION"
+
+# Bearer token / custom headers (repeatable)
+panoptes scan https://api.example.com --i-am-authorized -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+Safety: cookies are **bound to the target host**, so they are never sent to
+another domain (e.g. via a redirect), and credential values are treated as
+secrets — never logged or written into reports. You can also set them under an
+`auth:` block in the config file. Grab a valid session from your browser's
+devtools (Application → Cookies, or a request's `Authorization` header) for an
+account you're authorized to use.
+
 Or drive everything from a config file:
 
 ```bash

@@ -49,6 +49,24 @@ class ScopeConfig:
 
 
 @dataclass
+class AuthConfig:
+    """Credentials for authenticated (behind-login) scanning.
+
+    Headers and cookies are attached to every in-scope request. Cookies are
+    bound to the target host so they are never sent to another domain (e.g.
+    through a redirect). Values are treated as secrets: never logged or written
+    into reports.
+    """
+
+    headers: Dict[str, str] = field(default_factory=dict)
+    cookies: Dict[str, str] = field(default_factory=dict)
+
+    @property
+    def active(self) -> bool:
+        return bool(self.headers or self.cookies)
+
+
+@dataclass
 class Config:
     target: str = ""
     plugins: List[str] = field(default_factory=list)  # empty == all
@@ -57,6 +75,7 @@ class Config:
     crawl: CrawlConfig = field(default_factory=CrawlConfig)
     ai: AIConfig = field(default_factory=AIConfig)
     scope: ScopeConfig = field(default_factory=ScopeConfig)
+    auth: AuthConfig = field(default_factory=AuthConfig)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Config":
@@ -66,6 +85,7 @@ class Config:
             "crawl": CrawlConfig,
             "ai": AIConfig,
             "scope": ScopeConfig,
+            "auth": AuthConfig,
         }
         kwargs: Dict[str, Any] = {}
         for f in fields(cls):

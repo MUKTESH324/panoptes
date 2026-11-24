@@ -93,12 +93,18 @@ class Hunt:
         result = HuntResult(target=self.config.target)
         provider: AIProvider = build_provider(self.config.ai)
         result.meta["ai_provider"] = provider.name
+        result.meta["authenticated"] = self.config.auth.active
 
         available = list(select())  # instantiated plugins; names below
         available_names = [p.name for p in available]
         planner = Planner(available=available_names)
 
-        async with ScopedHttpClient(self.scope, self.config.http) as client:
+        async with ScopedHttpClient(
+            self.scope,
+            self.config.http,
+            auth=self.config.auth,
+            cookie_domain=_hostname(self.config.target),
+        ) as client:
             crawler = Crawler(client, self.scope, self.config.crawl)
             try:
                 pages = await crawler.crawl(self.config.target)
@@ -176,3 +182,8 @@ class Hunt:
             "diff": hunt.diff.to_dict() if hunt.diff else None,
         }
         return sr
+
+def _hostname(target: str) -> str:
+    from urllib.parse import urlsplit
+
+    return urlsplit(target).hostname or ""

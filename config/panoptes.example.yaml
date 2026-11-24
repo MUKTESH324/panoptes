@@ -38,3 +38,9 @@ scope:
   allow_private: false
   # Must be true (or pass --i-am-authorized) for a scan to run.
   authorized: false
+
+# Authenticated scanning (behind login). Cookies are bound to the target host
+# and never sent elsewhere. Keep real credentials out of version control.
+auth:
+  headers: {}      # e.g. {"Authorization": "Bearer <token>"}
+  cookies: {}      # e.g. {"session": "<session-value>"}

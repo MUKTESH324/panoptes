@@ -65,6 +65,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--depth", type=int, help="max crawl depth")
     s.add_argument("--no-crawl", action="store_true", help="scan only the target URL")
     s.add_argument("--insecure", action="store_true", help="do not verify TLS certs")
+    s.add_argument("--header", "-H", action="append", default=[], metavar="'Name: Value'",
+                   help="extra header sent on every request (repeatable), e.g. -H 'Authorization: Bearer ...'")
+    s.add_argument("--cookie", "-b", action="append", default=[], metavar="'name=value'",
+                   help="session cookie for authenticated scans (repeatable; 'a=1; b=2' also accepted)")
     s.add_argument("--ai-provider", choices=available_providers(),
                    help="enable an AI payload provider")
     s.add_argument("--ai-model", help="model name for the AI provider")
@@ -99,6 +103,10 @@ def build_parser() -> argparse.ArgumentParser:
     h.add_argument("--depth", type=int, help="max crawl depth")
     h.add_argument("--no-crawl", action="store_true", help="scan only the target URL")
     h.add_argument("--insecure", action="store_true", help="do not verify TLS certs")
+    h.add_argument("--header", "-H", action="append", default=[], metavar="'Name: Value'",
+                   help="extra header sent on every request (repeatable)")
+    h.add_argument("--cookie", "-b", action="append", default=[], metavar="'name=value'",
+                   help="session cookie for authenticated scans (repeatable; 'a=1; b=2' also accepted)")
     h.add_argument("--ai-provider", choices=available_providers(),
                    help="enable an AI payload provider")
     h.add_argument("--ai-model", help="model name for the AI provider")
@@ -152,6 +160,23 @@ def _load_config(args: argparse.Namespace) -> Config:
     cfg.scope.deny = list(dict.fromkeys(cfg.scope.deny + list(args.deny)))
     cfg.scope.allow_private = cfg.scope.allow_private or args.allow_private
     cfg.scope.authorized = cfg.scope.authorized or args.i_am_authorized
+
+    # Authenticated-scan credentials.
+    for raw in getattr(args, "header", None) or []:
+        name, sep, value = raw.partition(":")
+        if not sep:
+            print(f"warning: ignoring malformed --header {raw!r} (expected 'Name: Value')",
+                  file=sys.stderr)
+            continue
+        if name.strip():
+            cfg.auth.headers[name.strip()] = value.strip()
+    for raw in getattr(args, "cookie", None) or []:
+        for part in raw.split(";"):
+            n, sep, v = part.partition("=")
+            if not sep:
+                continue
+            if n.strip():
+                cfg.auth.cookies[n.strip()] = v.strip()
     return cfg
 
 
@@ -175,6 +200,7 @@ def _cmd_scan(args: argparse.Namespace) -> int:
         print(_BANNER, file=sys.stderr)
         print(f"[*] target: {cfg.target}", file=sys.stderr)
         print(f"[*] scope:  allow={scope.allow} deny={scope.deny}", file=sys.stderr)
+        _print_auth(cfg)
 
     try:
         scope.require_authorization()
@@ -227,6 +253,7 @@ def _cmd_hunt(args: argparse.Namespace) -> int:
     if args.verbose:
         print(_BANNER, file=sys.stderr)
         print(f"[*] hunting: {cfg.target}  scope={scope.allow}", file=sys.stderr)
+        _print_auth(cfg)
 
     try:
         scope.require_authorization()
@@ -313,6 +340,18 @@ def _print_summary(result) -> None:
         f"low={c['low']} info={c['info']}) across {result.urls_scanned} URLs",
         file=sys.stderr,
     )
+
+
+def _print_auth(cfg: Config) -> None:
+    if cfg.auth.active:
+        # Redacted: names only, never values.
+        hdrs = ", ".join(sorted(cfg.auth.headers)) or "-"
+        cooks = ", ".join(sorted(cfg.auth.cookies)) or "-"
+        print(
+            f"[*] authenticated: headers=[{hdrs}] cookies=[{cooks}] "
+            "(bound to target host)",
+            file=sys.stderr,
+        )
 
 
 def _host_list(target: str) -> List[str]:
