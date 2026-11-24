@@ -31,3 +31,35 @@ def test_dedupe_keeps_strongest():
 def test_dedupe_sorted_by_severity_desc():
     out = dedupe_findings([_f(Severity.LOW, title="a"), _f(Severity.CRITICAL, title="b")])
     assert [f.severity for f in out] == [Severity.CRITICAL, Severity.LOW]
+
+
+def _site_wide(url):
+    return Finding(plugin="cookie-flags", title="Cookie 'x' insecure", severity=Severity.LOW,
+                   description="d", url=url, site_wide=True)
+
+
+def test_site_wide_findings_collapse_per_host():
+    findings = [
+        _site_wide("https://example.com/a.js"),
+        _site_wide("https://example.com/b.png"),
+        _site_wide("https://example.com/c/d.svg?v=1"),
+    ]
+    out = dedupe_findings(findings)
+    assert len(out) == 1
+    assert out[0].occurrences == 3
+
+
+def test_site_wide_distinguishes_hosts():
+    out = dedupe_findings([
+        _site_wide("https://a.example.com/x"),
+        _site_wide("https://b.example.com/x"),
+    ])
+    assert len(out) == 2
+
+
+def test_per_url_findings_not_collapsed():
+    a = Finding(plugin="reflected-xss", title="XSS", severity=Severity.HIGH, description="d",
+                url="https://example.com/s?q=1")
+    b = Finding(plugin="reflected-xss", title="XSS", severity=Severity.HIGH, description="d",
+                url="https://example.com/other?q=1")
+    assert len(dedupe_findings([a, b])) == 2

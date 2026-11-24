@@ -81,19 +81,28 @@ class Finding:
     references: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
+    # site_wide: the issue is a server/host-level config (e.g. a cookie or
+    # header set identically on every URL), so it should collapse to ONE finding
+    # per host instead of one per URL.
+    site_wide: bool = False
+    # How many locations this (deduped) finding was observed at.
+    occurrences: int = 1
 
     @property
     def fingerprint(self) -> str:
         """Stable identity used for dedupe across scans.
 
         Deliberately excludes volatile fields (evidence, timestamps) so the same
-        issue at the same location collapses to one fingerprint.
+        issue collapses to one fingerprint. For site-wide issues the location is
+        reduced to the host, so the same cookie/header problem on 200 asset URLs
+        is a single finding rather than 200.
         """
+        location = _host_only(self.url) if self.site_wide else _normalize_url(self.url)
         basis = "|".join(
             [
                 self.plugin,
                 self.title,
-                _normalize_url(self.url),
+                location,
                 self.cwe or "",
             ]
         )
@@ -141,6 +150,17 @@ class ScanResult:
             "errors": self.errors,
             "meta": self.meta,
         }
+
+
+def _host_only(url: str) -> str:
+    """Return scheme://host[:port] for host-level fingerprinting."""
+    from urllib.parse import urlsplit
+
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return url
+    return f"{parts.scheme.lower()}://{parts.netloc.lower()}"
 
 
 def _normalize_url(url: str) -> str:

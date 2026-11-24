@@ -82,4 +82,5 @@ class SecurityHeaders(Plugin):
                     evidence=f"Response for {ctx.url} did not include '{header}'.",
                     remediation=fix,
                     tags=["headers", "passive"],
+                    site_wide=True,
                 )

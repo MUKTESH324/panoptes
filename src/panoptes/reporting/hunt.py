@@ -97,7 +97,8 @@ def render_hunt_markdown(hunt) -> str:
             f"### {i}. {_EMOJI[f.severity]} {f.title}",
             "",
             f"- **Severity:** {f.severity.name.title()}  |  **URL:** `{f.url}`  |  "
-            f"**Plugin:** `{f.plugin}`" + (f"  |  **{f.cwe}**" if f.cwe else ""),
+            f"**Plugin:** `{f.plugin}`" + (f"  |  **{f.cwe}**" if f.cwe else "")
+            + (f"  |  seen on {f.occurrences} locations" if f.occurrences > 1 else ""),
             "",
             f.description,
             "",

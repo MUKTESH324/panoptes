@@ -47,6 +47,7 @@ class InfoDisclosure(Plugin):
                     evidence=f"{header}: {value}",
                     remediation="Suppress or genericize version banners.",
                     tags=["disclosure", "passive"],
+                    site_wide=True,
                 )
 
         body = _safe_text(ctx.response)

@@ -53,4 +53,5 @@ class CookieFlags(Plugin):
                         "SameSite attribute (Lax or Strict) where applicable."
                     ),
                     tags=["cookies", "passive"],
+                    site_wide=True,
                 )

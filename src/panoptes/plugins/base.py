@@ -55,6 +55,7 @@ class ScanContext:
         references: Optional[List[str]] = None,
         tags: Optional[List[str]] = None,
         url: Optional[str] = None,
+        site_wide: bool = False,
     ) -> Finding:
         finding = Finding(
             plugin=plugin,
@@ -69,6 +70,7 @@ class ScanContext:
             references=references or [],
             tags=tags or [],
             url=url or self.url,
+            site_wide=site_wide,
         )
         self._findings.append(finding)
         return finding

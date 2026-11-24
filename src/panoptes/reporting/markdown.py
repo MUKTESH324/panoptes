@@ -43,7 +43,8 @@ def render_markdown(result: ScanResult) -> str:
             "",
             f"- **Severity:** {f.severity.name.title()}",
             f"- **Confidence:** {str(f.confidence).title()}",
-            f"- **URL:** `{f.url}`",
+            f"- **URL:** `{f.url}`"
+            + (f"  _(and {f.occurrences - 1} more location(s))_" if f.occurrences > 1 else ""),
             f"- **Plugin:** `{f.plugin}`",
         ]
         if f.cwe:
