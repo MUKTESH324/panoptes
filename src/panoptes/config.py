@@ -76,6 +76,40 @@ class AuthConfig:
 
 
 @dataclass
+class LoginConfig:
+    """Login macro — Panoptes submits a login form to obtain a session."""
+
+    url: str = ""
+    username: str = ""
+    password: str = ""
+    username_field: str = ""   # auto-detected from the form when empty
+    password_field: str = ""   # auto-detected from the form when empty
+    action: str = ""           # auto-detected from the form when empty
+    method: str = "post"
+    extra: Dict[str, str] = field(default_factory=dict)
+    success_indicator: str = ""      # text present only when logged in
+    logged_out_indicator: str = ""   # text present only when logged out
+
+    @property
+    def active(self) -> bool:
+        return bool(self.url and self.username and self.password)
+
+
+@dataclass
+class AccessControlConfig:
+    """Access-control / IDOR testing options."""
+
+    enabled: bool = False
+    # Optional second identity (user B) for IDOR comparison, as cookies/headers.
+    idor_headers: Dict[str, str] = field(default_factory=dict)
+    idor_cookies: Dict[str, str] = field(default_factory=dict)
+
+    @property
+    def has_second_identity(self) -> bool:
+        return bool(self.idor_headers or self.idor_cookies)
+
+
+@dataclass
 class Config:
     target: str = ""
     plugins: List[str] = field(default_factory=list)  # empty == all
@@ -85,7 +119,9 @@ class Config:
     ai: AIConfig = field(default_factory=AIConfig)
     scope: ScopeConfig = field(default_factory=ScopeConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
+    login: LoginConfig = field(default_factory=LoginConfig)
     portscan: PortScanConfig = field(default_factory=PortScanConfig)
+    access: AccessControlConfig = field(default_factory=AccessControlConfig)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Config":
@@ -96,7 +132,9 @@ class Config:
             "ai": AIConfig,
             "scope": ScopeConfig,
             "auth": AuthConfig,
+            "login": LoginConfig,
             "portscan": PortScanConfig,
+            "access": AccessControlConfig,
         }
         kwargs: Dict[str, Any] = {}
         for f in fields(cls):

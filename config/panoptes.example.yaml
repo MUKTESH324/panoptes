@@ -45,6 +45,21 @@ auth:
   headers: {}      # e.g. {"Authorization": "Bearer <token>"}
   cookies: {}      # e.g. {"session": "<session-value>"}
 
+# Login macro — Panoptes submits this form and scans as the logged-in user.
+login:
+  url: ""                 # e.g. https://app.example.com/login
+  username: ""
+  password: ""
+  username_field: ""      # auto-detected from the form if blank
+  password_field: ""      # auto-detected from the form if blank
+  success_indicator: ""   # text present only when logged in, e.g. "Log out"
+
+# Access-control / IDOR testing (needs a session from login or auth above).
+access:
+  enabled: false
+  idor_headers: {}        # a SECOND identity (user B) for IDOR comparison
+  idor_cookies: {}        # e.g. {"session": "<user-B-session>"}
+
 # Optional port-scan recon (used by `hunt` when enabled, or the `portscan`
 # command). Uses nmap if installed, otherwise a built-in TCP connect scan.
 portscan:

@@ -99,7 +99,7 @@ class Hunt:
         result = HuntResult(target=self.config.target)
         provider: AIProvider = build_provider(self.config.ai)
         result.meta["ai_provider"] = provider.name
-        result.meta["authenticated"] = self.config.auth.active
+        result.meta["authenticated"] = self.config.auth.active or self.config.login.active
 
         available = list(select())  # instantiated plugins; names below
         available_names = [p.name for p in available]
@@ -111,6 +111,16 @@ class Hunt:
             auth=self.config.auth,
             cookie_domain=_hostname(self.config.target),
         ) as client:
+            # Login macro: authenticate before crawling so the whole scan is
+            # performed as the logged-in user.
+            if self.config.login.active:
+                from .login import perform_login
+
+                login_res = await perform_login(client, self.config.login)
+                result.meta["login"] = login_res.ok
+                if not login_res.ok:
+                    result.errors.append(f"login macro: {login_res.message}")
+
             crawler = Crawler(client, self.scope, self.config.crawl)
             try:
                 pages = await crawler.crawl(self.config.target)
@@ -170,6 +180,10 @@ class Hunt:
             except Exception as exc:  # noqa: BLE001
                 result.errors.append(f"port scan failed: {exc}")
 
+        # Access-control / IDOR pass (needs a session to be meaningful).
+        if self.config.access.enabled:
+            await self._access_pass(pages, raw, result)
+
         findings = dedupe_findings(raw)
 
         # Validation gate.
@@ -193,6 +207,33 @@ class Hunt:
 
         result.finished_at = time.time()
         return result
+
+    async def _access_pass(self, pages, raw, result) -> None:
+        """Access-control / IDOR checks using fresh anonymous / user-B clients."""
+        authenticated = self.config.login.active or self.config.auth.active
+        if authenticated:
+            from .access import find_missing_auth
+            try:
+                async with ScopedHttpClient(self.scope, self.config.http) as anon:
+                    raw.extend(await find_missing_auth(pages, anon))
+            except Exception as exc:  # noqa: BLE001
+                result.errors.append(f"access-control (missing-auth) failed: {exc}")
+
+        if self.config.access.has_second_identity:
+            from .access import find_idor
+            from .config import AuthConfig
+            auth_b = AuthConfig(
+                headers=self.config.access.idor_headers,
+                cookies=self.config.access.idor_cookies,
+            )
+            try:
+                async with ScopedHttpClient(
+                    self.scope, self.config.http, auth=auth_b,
+                    cookie_domain=_hostname(self.config.target),
+                ) as client_b:
+                    raw.extend(await find_idor(pages, client_b))
+            except Exception as exc:  # noqa: BLE001
+                result.errors.append(f"access-control (idor) failed: {exc}")
 
     def as_scan_result(self, hunt: HuntResult) -> ScanResult:
         """Adapt a HuntResult to a ScanResult for the standard renderers."""

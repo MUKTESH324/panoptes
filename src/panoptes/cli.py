@@ -108,6 +108,19 @@ def build_parser() -> argparse.ArgumentParser:
                    help="extra header sent on every request (repeatable)")
     h.add_argument("--cookie", "-b", action="append", default=[], metavar="'name=value'",
                    help="session cookie for authenticated scans (repeatable; 'a=1; b=2' also accepted)")
+    h.add_argument("--login-url", metavar="URL", help="login page URL for the login macro")
+    h.add_argument("--login-user", metavar="USER", help="username/email for the login macro")
+    h.add_argument("--login-pass", metavar="PASS", help="password for the login macro")
+    h.add_argument("--login-user-field", help="login form username field name (auto-detected if omitted)")
+    h.add_argument("--login-pass-field", help="login form password field name (auto-detected if omitted)")
+    h.add_argument("--login-success", metavar="TEXT",
+                   help="text present in the response only when login succeeded")
+    h.add_argument("--access-control", action="store_true",
+                   help="run access-control checks (auth-vs-anonymous; IDOR with a second identity)")
+    h.add_argument("--idor-cookie", action="append", default=[], metavar="'name=value'",
+                   help="second identity (user B) cookie for IDOR comparison (repeatable)")
+    h.add_argument("--idor-header", action="append", default=[], metavar="'Name: Value'",
+                   help="second identity (user B) header for IDOR comparison (repeatable)")
     h.add_argument("--port-scan", action="store_true",
                    help="include a port-scan recon step (nmap if available, else connect scan)")
     h.add_argument("--ports", metavar="SPEC",
@@ -182,6 +195,31 @@ def _load_config(args: argparse.Namespace) -> Config:
     cfg.scope.deny = list(dict.fromkeys(cfg.scope.deny + list(args.deny)))
     cfg.scope.allow_private = cfg.scope.allow_private or args.allow_private
     cfg.scope.authorized = cfg.scope.authorized or args.i_am_authorized
+
+    # Login macro (hunt only).
+    if getattr(args, "login_url", None):
+        cfg.login.url = args.login_url
+        cfg.login.username = getattr(args, "login_user", "") or ""
+        cfg.login.password = getattr(args, "login_pass", "") or ""
+        if getattr(args, "login_user_field", None):
+            cfg.login.username_field = args.login_user_field
+        if getattr(args, "login_pass_field", None):
+            cfg.login.password_field = args.login_pass_field
+        if getattr(args, "login_success", None):
+            cfg.login.success_indicator = args.login_success
+
+    # Access-control / IDOR (hunt only).
+    if getattr(args, "access_control", False):
+        cfg.access.enabled = True
+    for raw in getattr(args, "idor_header", None) or []:
+        name, sep, value = raw.partition(":")
+        if sep and name.strip():
+            cfg.access.idor_headers[name.strip()] = value.strip()
+    for raw in getattr(args, "idor_cookie", None) or []:
+        for part in raw.split(";"):
+            n, sep, v = part.partition("=")
+            if sep and n.strip():
+                cfg.access.idor_cookies[n.strip()] = v.strip()
 
     # Port-scan options (hunt only).
     if getattr(args, "port_scan", False):
@@ -423,6 +461,12 @@ def _print_auth(cfg: Config) -> None:
             "(bound to target host)",
             file=sys.stderr,
         )
+    if cfg.login.active:
+        print(f"[*] login macro: {cfg.login.url} as {cfg.login.username} (password redacted)",
+              file=sys.stderr)
+    if cfg.access.enabled:
+        extra = " + user-B IDOR" if cfg.access.has_second_identity else ""
+        print(f"[*] access-control checks enabled{extra}", file=sys.stderr)
 
 
 def _host_list(target: str) -> List[str]:
