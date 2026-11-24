@@ -20,7 +20,10 @@ import httpx
 
 # Plugin classification used for phasing.
 PASSIVE_PLUGINS = ["security-headers", "cookie-flags", "info-disclosure", "csrf", "jwt"]
-ACTIVE_PLUGINS = ["cors-misconfig", "open-redirect", "reflected-xss", "sqli-error", "ssrf"]
+ACTIVE_PLUGINS = [
+    "cors-misconfig", "open-redirect", "reflected-xss", "sqli-error", "ssrf",
+    "ssti", "path-traversal", "command-injection", "exposed-files",
+]
 
 _WAF_SIGNS = {
     "cloudflare": ["cf-ray", "__cfduid", "cf-cache-status"],
