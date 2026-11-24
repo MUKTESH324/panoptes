@@ -1,4 +1,4 @@
-from argus.payloads import get_payloads, new_marker, vuln_types
+from panoptes.payloads import get_payloads, new_marker, vuln_types
 
 
 def test_vuln_types_present():

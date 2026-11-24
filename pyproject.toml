@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "argus-scanner"
+name = "panoptes-scanner"
 version = "0.1.0"
 description = "AI-assisted web vulnerability scanner for authorized security testing"
 readme = "README.md"
@@ -34,17 +34,17 @@ dev = [
 ]
 
 [project.scripts]
-argus = "argus.cli:main"
+panoptes = "panoptes.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/muktesh/argus"
-Issues = "https://github.com/muktesh/argus/issues"
+Homepage = "https://github.com/MUKTESH324/panoptes"
+Issues = "https://github.com/MUKTESH324/panoptes/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-argus = ["data/*.yaml"]
+panoptes = ["data/*.yaml"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

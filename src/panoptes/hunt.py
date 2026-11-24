@@ -1,6 +1,6 @@
 """Autonomous hunt orchestrator.
 
-Combines Argus's scanning engine with the agentic layer into one flow:
+Combines Panoptes's scanning engine with the agentic layer into one flow:
 
     recon (crawl + passive)  ->  plan  ->  phased checks  ->  validate
         ->  record in brain (diff vs. last run)  ->  build exploit chains

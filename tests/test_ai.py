@@ -1,7 +1,7 @@
-from argus.ai import NullProvider, PayloadRequest, build_provider
-from argus.ai.providers import _parse_payloads
-from argus.ai.registry import FailoverProvider
-from argus.config import AIConfig
+from panoptes.ai import NullProvider, PayloadRequest, build_provider
+from panoptes.ai.providers import _parse_payloads
+from panoptes.ai.registry import FailoverProvider
+from panoptes.config import AIConfig
 
 
 async def test_null_provider_returns_empty():

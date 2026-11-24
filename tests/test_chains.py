@@ -1,5 +1,5 @@
-from argus.chains import ChainBuilder
-from argus.models import Finding, Severity
+from panoptes.chains import ChainBuilder
+from panoptes.models import Finding, Severity
 
 
 def _f(plugin, title, url="https://example.com/"):

@@ -1,6 +1,6 @@
 from conftest import make_response
 
-from argus.planner import Planner, Signals, recon_signals
+from panoptes.planner import Planner, Signals, recon_signals
 
 
 def test_plan_passive_first():

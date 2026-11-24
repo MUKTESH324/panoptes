@@ -25,7 +25,7 @@ class ReflectedXSS(Plugin):
             return
         marker = secrets.token_hex(6)
         # Benign, self-identifying probe; the angle brackets are the signal.
-        payload = f"<argus{marker}>"
+        payload = f"<panoptes{marker}>"
         for param, mutated in iter_param_injections(ctx.url, payload):
             try:
                 resp = await ctx.client.get(mutated)

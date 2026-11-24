@@ -1,5 +1,5 @@
-from argus.brain import Brain
-from argus.models import Finding, Severity
+from panoptes.brain import Brain
+from panoptes.models import Finding, Severity
 
 
 def _f(title, sev=Severity.MEDIUM, url="https://example.com/a"):

@@ -45,7 +45,7 @@ def render_sarif(result: ScanResult) -> str:
                         }
                     }
                 ],
-                "partialFingerprints": {"argus/v1": f.fingerprint},
+                "partialFingerprints": {"panoptes/v1": f.fingerprint},
                 "properties": {
                     "cwe": f.cwe,
                     "owasp": f.owasp,
@@ -62,9 +62,9 @@ def render_sarif(result: ScanResult) -> str:
             {
                 "tool": {
                     "driver": {
-                        "name": "Argus",
+                        "name": "Panoptes",
                         "version": __version__,
-                        "informationUri": "https://example.invalid/argus",
+                        "informationUri": "https://example.invalid/panoptes",
                         "rules": list(rules.values()),
                     }
                 },

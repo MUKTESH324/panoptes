@@ -12,7 +12,7 @@ _REDIRECT_PARAMS = {
     "url", "redirect", "redirect_uri", "redirect_url", "next", "return",
     "returnurl", "return_to", "dest", "destination", "continue", "goto", "to",
 }
-_CANARY = "https://argus-redirect-probe.example/"
+_CANARY = "https://panoptes-redirect-probe.example/"
 
 
 @register
@@ -37,7 +37,7 @@ class OpenRedirect(Plugin):
             if resp.status_code not in (301, 302, 303, 307, 308):
                 continue
             location = resp.headers.get("location", "")
-            if location.startswith(_CANARY) or _host_of(location) == "argus-redirect-probe.example":
+            if location.startswith(_CANARY) or _host_of(location) == "panoptes-redirect-probe.example":
                 self._report(
                     ctx,
                     title=f"Open redirect via parameter '{param}'",

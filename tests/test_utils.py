@@ -1,6 +1,6 @@
-from argus.models import Confidence, Finding, Severity
-from argus.utils.dedupe import dedupe_findings
-from argus.utils.inject import has_query_params, iter_param_injections
+from panoptes.models import Confidence, Finding, Severity
+from panoptes.utils.dedupe import dedupe_findings
+from panoptes.utils.inject import has_query_params, iter_param_injections
 
 
 def test_iter_param_injections():

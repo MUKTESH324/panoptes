@@ -1,4 +1,4 @@
-from argus.models import Finding, ScanResult, Severity
+from panoptes.models import Finding, ScanResult, Severity
 
 
 def _finding(**kw):

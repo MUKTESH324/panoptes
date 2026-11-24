@@ -1,15 +1,15 @@
 services:
-  argus:
+  panoptes:
     build: .
-    image: argus-scanner:local
+    image: panoptes-scanner:local
     environment:
-      - ARGUS_RPS=${ARGUS_RPS:-10}
+      - PANOPTES_RPS=${PANOPTES_RPS:-10}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - ./reports:/app/reports
       - ./config:/app/config:ro
     # Example (override at runtime):
-    #   docker compose run --rm argus scan https://example.com \
+    #   docker compose run --rm panoptes scan https://example.com \
     #       --i-am-authorized -o reports/example.html --format html
     command: ["--help"]

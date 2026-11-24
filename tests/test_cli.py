@@ -1,4 +1,4 @@
-from argus.cli import main
+from panoptes.cli import main
 
 
 def test_plugins_command_lists(capsys):

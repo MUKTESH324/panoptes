@@ -16,7 +16,7 @@ class HttpConfig:
     timeout: float = 15.0
     max_concurrency: int = 10
     requests_per_second: float = 20.0
-    user_agent: str = "Argus/0.1 (+authorized-security-testing)"
+    user_agent: str = "Panoptes/0.1 (+authorized-security-testing)"
     verify_tls: bool = True
     follow_redirects: bool = True
     max_retries: int = 2
@@ -90,12 +90,12 @@ class Config:
         return cfg
 
     def _apply_env(self) -> None:
-        if os.getenv("ARGUS_TARGET"):
-            self.target = os.environ["ARGUS_TARGET"]
-        if os.getenv("ARGUS_AUTHORIZED", "").lower() in ("1", "true", "yes"):
+        if os.getenv("PANOPTES_TARGET"):
+            self.target = os.environ["PANOPTES_TARGET"]
+        if os.getenv("PANOPTES_AUTHORIZED", "").lower() in ("1", "true", "yes"):
             self.scope.authorized = True
-        if os.getenv("ARGUS_RPS"):
+        if os.getenv("PANOPTES_RPS"):
             try:
-                self.http.requests_per_second = float(os.environ["ARGUS_RPS"])
+                self.http.requests_per_second = float(os.environ["PANOPTES_RPS"])
             except ValueError:
                 pass

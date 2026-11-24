@@ -1,9 +1,9 @@
-# Argus example configuration.
-# Run:  argus scan --config config/argus.example.yaml --i-am-authorized
+# Panoptes example configuration.
+# Run:  panoptes scan --config config/panoptes.example.yaml --i-am-authorized
 
 target: "https://example.com"
 
-# Only these plugins (empty = all). See: argus plugins
+# Only these plugins (empty = all). See: panoptes plugins
 plugins: []
 exclude_plugins: []
 
@@ -11,7 +11,7 @@ http:
   timeout: 15.0
   max_concurrency: 10
   requests_per_second: 10.0
-  user_agent: "Argus/0.1 (+authorized-security-testing)"
+  user_agent: "Panoptes/0.1 (+authorized-security-testing)"
   verify_tls: true
   follow_redirects: true
   max_retries: 2
@@ -31,7 +31,7 @@ ai:
   max_payloads: 8
 
 scope:
-  # Hosts Argus is permitted to touch (wildcards allowed, e.g. "*.example.com").
+  # Hosts Panoptes is permitted to touch (wildcards allowed, e.g. "*.example.com").
   allow:
     - "example.com"
   deny: []

@@ -1,6 +1,6 @@
 """Concrete AI providers (OpenAI-compatible, Anthropic, Ollama).
 
-All providers talk HTTP directly via httpx so Argus has no heavy vendor SDK
+All providers talk HTTP directly via httpx so Panoptes has no heavy vendor SDK
 dependencies. Payloads are parsed defensively: anything that is not a clean
 JSON array of strings is discarded.
 """

@@ -15,7 +15,7 @@ from .plugins.base import Plugin, ScanContext, select
 from .scope import Scope
 from .utils.dedupe import dedupe_findings
 
-log = logging.getLogger("argus.engine")
+log = logging.getLogger("panoptes.engine")
 
 
 class Engine:

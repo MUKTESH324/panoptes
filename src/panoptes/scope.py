@@ -1,6 +1,6 @@
 """Scope enforcement and authorization gate.
 
-This is the safety core of Argus. No request is ever issued to a host that is
+This is the safety core of Panoptes. No request is ever issued to a host that is
 not explicitly in scope, and a scan cannot start unless the operator has
 affirmed they are authorized to test the target.
 
@@ -35,7 +35,7 @@ class OutOfScopeError(RuntimeError):
 
 @dataclass
 class Scope:
-    """Defines and enforces what Argus is permitted to touch."""
+    """Defines and enforces what Panoptes is permitted to touch."""
 
     allow: List[str] = field(default_factory=list)
     deny: List[str] = field(default_factory=list)
@@ -53,7 +53,7 @@ class Scope:
         if not self.allow:
             raise AuthorizationError(
                 "Scan refused: empty scope allowlist. Add at least one host to "
-                "'allow' so Argus knows exactly what it may touch."
+                "'allow' so Panoptes knows exactly what it may touch."
             )
 
     def host_allowed(self, host: str) -> bool:

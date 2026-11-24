@@ -5,7 +5,7 @@ from __future__ import annotations
 from ..models import Confidence, Severity
 from .base import Plugin, ScanContext, register
 
-_PROBE_ORIGIN = "https://argus-cors-probe.example"
+_PROBE_ORIGIN = "https://panoptes-cors-probe.example"
 
 
 @register

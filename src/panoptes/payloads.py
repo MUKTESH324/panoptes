@@ -13,12 +13,12 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 _DEFAULTS: Dict[str, List[str]] = {
-    "xss": ["<argus{marker}>", "\"'><argus{marker}>"],
+    "xss": ["<panoptes{marker}>", "\"'><panoptes{marker}>"],
     "sqli": ["'", "\" OR '1'='1' -- {marker}"],
-    "open_redirect": ["https://argus-redirect-probe.example/{marker}"],
-    "ssti": ["argus{{7*7}}{marker}"],
+    "open_redirect": ["https://panoptes-redirect-probe.example/{marker}"],
+    "ssti": ["panoptes{{7*7}}{marker}"],
     "lfi": ["../../../../etc/hostname"],
-    "ssrf": ["http://argus-ssrf-probe.example/{marker}"],
+    "ssrf": ["http://panoptes-ssrf-probe.example/{marker}"],
 }
 
 _DATA_FILE = Path(__file__).parent / "data" / "payloads.yaml"
@@ -41,7 +41,7 @@ def _load_library() -> Dict[str, List[str]]:
 
 
 def new_marker() -> str:
-    return "a" + secrets.token_hex(5)
+    return "p" + secrets.token_hex(5)
 
 
 def get_payloads(vuln_type: str, marker: Optional[str] = None) -> List[str]:

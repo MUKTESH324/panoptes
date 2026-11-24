@@ -12,8 +12,8 @@ COPY src ./src
 RUN pip install --no-cache-dir .
 
 # Run as an unprivileged user.
-RUN useradd --create-home --uid 10001 argus
-USER argus
+RUN useradd --create-home --uid 10001 panoptes
+USER panoptes
 
-ENTRYPOINT ["argus"]
+ENTRYPOINT ["panoptes"]
 CMD ["--help"]

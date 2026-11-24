@@ -1,10 +1,10 @@
 from conftest import FakeClient, make_response
 
-from argus.plugins.base import ScanContext
-from argus.plugins.cors import CorsMisconfig
-from argus.plugins.open_redirect import OpenRedirect
-from argus.plugins.reflected_xss import ReflectedXSS
-from argus.plugins.sqli_error import SqliError
+from panoptes.plugins.base import ScanContext
+from panoptes.plugins.cors import CorsMisconfig
+from panoptes.plugins.open_redirect import OpenRedirect
+from panoptes.plugins.reflected_xss import ReflectedXSS
+from panoptes.plugins.sqli_error import SqliError
 
 
 async def test_cors_reflects_origin():
@@ -54,7 +54,7 @@ async def test_reflected_xss_detects_unencoded():
 async def test_reflected_xss_safe_when_encoded():
     def handler(url, kwargs):
         return make_response(url, headers={"content-type": "text/html"},
-                             text="<div>&lt;argus&gt;</div>")
+                             text="<div>&lt;panoptes&gt;</div>")
 
     ctx = ScanContext(url="https://example.com/s?q=hi", client=FakeClient(handler))
     await ReflectedXSS().check(ctx)
@@ -75,7 +75,7 @@ async def test_sqli_error_detected():
 async def test_open_redirect_detected():
     def handler(url, kwargs):
         return make_response(url, status=302,
-                             headers={"location": "https://argus-redirect-probe.example/"})
+                             headers={"location": "https://panoptes-redirect-probe.example/"})
 
     ctx = ScanContext(url="https://example.com/go?next=/home", client=FakeClient(handler))
     await OpenRedirect().check(ctx)

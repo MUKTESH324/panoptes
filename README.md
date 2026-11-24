@@ -1,4 +1,4 @@
-<h1 align="center">Argus</h1>
+<h1 align="center">Panoptes</h1>
 
 <p align="center">
   <strong>AI-assisted web vulnerability scanner for <em>authorized</em> security testing.</strong>
@@ -12,14 +12,14 @@
 
 ---
 
-Argus crawls a target, runs a plugin suite of non-destructive vulnerability
+Panoptes crawls a target, runs a plugin suite of non-destructive vulnerability
 checks, and (optionally) uses an LLM to generate context-aware payloads. It
 produces findings you can export to **JSON, SARIF, Markdown, or HTML**.
 
 It has two modes:
 
-- **`argus scan`** — the scanner: crawl + plugin checks + report.
-- **`argus hunt`** — the agentic layer on top: lightweight recon, then it
+- **`panoptes scan`** — the scanner: crawl + plugin checks + report.
+- **`panoptes hunt`** — the agentic layer on top: lightweight recon, then it
   **plans** which checks the surface warrants, runs them, **validates** each
   finding to drop likely false positives, **infers exploit chains** (how issues
   compound into something worse), and **remembers** results in a persistent
@@ -60,8 +60,8 @@ architecture** that makes new checks a few lines of code.
 ## Install
 
 ```bash
-git clone https://github.com/muktesh/argus.git
-cd argus
+git clone https://github.com/MUKTESH324/panoptes.git
+cd panoptes
 python -m venv .venv && source .venv/bin/activate
 pip install -e .            # or: pip install -e ".[dev]" for tests/lint
 ```
@@ -70,45 +70,45 @@ pip install -e .            # or: pip install -e ".[dev]" for tests/lint
 
 ```bash
 # List what's available
-argus plugins
-argus providers
+panoptes plugins
+panoptes providers
 
 # Scan a target you are authorized to test (Markdown report to stdout)
-argus scan https://example.com --i-am-authorized
+panoptes scan https://example.com --i-am-authorized
 
 # HTML report to a file, politely rate-limited
-argus scan https://example.com --i-am-authorized \
+panoptes scan https://example.com --i-am-authorized \
     --rps 5 --format html -o reports/example.html
 
 # SARIF for CI, failing the build on any high+ finding
-argus scan https://example.com --i-am-authorized \
-    --format sarif -o argus.sarif --fail-on high
+panoptes scan https://example.com --i-am-authorized \
+    --format sarif -o panoptes.sarif --fail-on high
 
 # Only run specific checks, broaden scope to subdomains
-argus scan https://example.com --i-am-authorized \
+panoptes scan https://example.com --i-am-authorized \
     --plugins security-headers cookie-flags --scope "*.example.com"
 
 # Enable AI payloads with a local Ollama model (nothing leaves your host)
-argus scan https://example.com --i-am-authorized --ai-provider ollama --ai-model llama3
+panoptes scan https://example.com --i-am-authorized --ai-provider ollama --ai-model llama3
 ```
 
 ### Hunt mode (plan → scan → validate → chain → remember)
 
 ```bash
 # Autonomous hunt: recon, plan, validate findings, infer chains, remember results
-argus hunt https://example.com --i-am-authorized
+panoptes hunt https://example.com --i-am-authorized
 
 # Strict mode drops likely false positives; persist to a chosen brain DB
-argus hunt https://example.com --i-am-authorized --strict --brain .argus/acme.db
+panoptes hunt https://example.com --i-am-authorized --strict --brain .panoptes/acme.db
 
 # What changed since the last run? Run it again — the report shows new/known/resolved.
-argus hunt https://example.com --i-am-authorized --brain .argus/acme.db
+panoptes hunt https://example.com --i-am-authorized --brain .panoptes/acme.db
 
 # Inspect the persistent memory for a target
-argus brain stats https://example.com --brain .argus/acme.db
+panoptes brain stats https://example.com --brain .panoptes/acme.db
 
 # List the payload library classes
-argus payloads
+panoptes payloads
 ```
 
 A hunt report includes the attack plan and rationale, a validation summary
@@ -118,7 +118,7 @@ chains**, and a **diff** against the previous run.
 Or drive everything from a config file:
 
 ```bash
-argus scan --config config/argus.example.yaml --i-am-authorized
+panoptes scan --config config/panoptes.example.yaml --i-am-authorized
 ```
 
 ## How it works
@@ -140,8 +140,8 @@ argus scan --config config/argus.example.yaml --i-am-authorized
 ## Writing a plugin
 
 ```python
-from argus.plugins.base import Plugin, register
-from argus.models import Severity
+from panoptes.plugins.base import Plugin, register
+from panoptes.models import Severity
 
 @register
 class MissingPoweredBy(Plugin):
@@ -160,7 +160,7 @@ class MissingPoweredBy(Plugin):
             )
 ```
 
-Drop it in `src/argus/plugins/` and it's auto-discovered.
+Drop it in `src/panoptes/plugins/` and it's auto-discovered.
 
 ## Development
 
@@ -175,7 +175,7 @@ make type    # mypy
 
 ```bash
 docker compose build
-docker compose run --rm argus scan https://example.com \
+docker compose run --rm panoptes scan https://example.com \
     --i-am-authorized -o reports/example.html --format html
 ```
 

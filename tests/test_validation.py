@@ -1,5 +1,5 @@
-from argus.models import Confidence, Finding, Severity
-from argus.validation import ValidationGate
+from panoptes.models import Confidence, Finding, Severity
+from panoptes.validation import ValidationGate
 
 
 def _strong():

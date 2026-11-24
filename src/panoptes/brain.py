@@ -67,7 +67,7 @@ class RunDiff:
 
 
 class Brain:
-    def __init__(self, path: str = ".argus/brain.db") -> None:
+    def __init__(self, path: str = ".panoptes/brain.db") -> None:
         self.path = path
         if path != ":memory:":
             Path(path).expanduser().parent.mkdir(parents=True, exist_ok=True)

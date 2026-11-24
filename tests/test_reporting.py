@@ -1,7 +1,7 @@
 import json
 
-from argus.models import Confidence, Finding, ScanResult, Severity
-from argus.reporting import render
+from panoptes.models import Confidence, Finding, ScanResult, Severity
+from panoptes.reporting import render
 
 
 def _result():
@@ -38,14 +38,14 @@ def test_render_sarif_valid_shape():
     data = json.loads(out)
     assert data["version"] == "2.1.0"
     run = data["runs"][0]
-    assert run["tool"]["driver"]["name"] == "Argus"
+    assert run["tool"]["driver"]["name"] == "Panoptes"
     assert run["results"][0]["level"] == "warning"
     assert run["results"][0]["ruleId"] == "security-headers"
 
 
 def test_render_markdown_contains_sections():
     out = render(_result(), "markdown")
-    assert "# Argus scan report" in out
+    assert "# Panoptes scan report" in out
     assert "CSP missing" in out
     assert "Remediation" in out
 

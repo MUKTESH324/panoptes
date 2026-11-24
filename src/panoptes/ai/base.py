@@ -1,12 +1,12 @@
 """AI provider abstraction.
 
-Argus can optionally use an LLM to generate *context-aware* test payloads
+Panoptes can optionally use an LLM to generate *context-aware* test payloads
 (e.g. tailored XSS/SQLi probes given a parameter name and observed tech stack).
 Providers share one tiny interface — :meth:`generate` — so the engine is
 provider-agnostic and can fail over across several.
 
 No provider is required: the default :class:`NullProvider` returns an empty
-list, and Argus runs its full static payload set without any API key.
+list, and Panoptes runs its full static payload set without any API key.
 """
 
 from __future__ import annotations

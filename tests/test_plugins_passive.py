@@ -1,9 +1,9 @@
 from conftest import make_response
 
-from argus.plugins.base import ScanContext
-from argus.plugins.cookies import CookieFlags
-from argus.plugins.info_disclosure import InfoDisclosure
-from argus.plugins.security_headers import SecurityHeaders
+from panoptes.plugins.base import ScanContext
+from panoptes.plugins.cookies import CookieFlags
+from panoptes.plugins.info_disclosure import InfoDisclosure
+from panoptes.plugins.security_headers import SecurityHeaders
 
 
 async def _run(plugin, response):

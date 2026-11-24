@@ -16,10 +16,10 @@ env/
 .coverage
 htmlcov/
 
-# Argus output / state / secrets
+# Panoptes output / state / secrets
 *.sarif
 reports/
-.argus/
+.panoptes/
 *.db
 .env
 config/*.local.yaml

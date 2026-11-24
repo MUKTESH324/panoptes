@@ -1,6 +1,6 @@
 import pytest
 
-from argus.scope import AuthorizationError, OutOfScopeError, Scope
+from panoptes.scope import AuthorizationError, OutOfScopeError, Scope
 
 
 def test_authorization_required():

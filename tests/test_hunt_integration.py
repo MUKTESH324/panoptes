@@ -9,11 +9,11 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
-from argus.brain import Brain
-from argus.config import Config
-from argus.hunt import Hunt
-from argus.reporting.hunt import render_hunt
-from argus.scope import Scope
+from panoptes.brain import Brain
+from panoptes.config import Config
+from panoptes.hunt import Hunt
+from panoptes.reporting.hunt import render_hunt
+from panoptes.scope import Scope
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -89,7 +89,7 @@ def test_hunt_full_pipeline(server):
 
     # Report renders.
     md = render_hunt(hunt, "markdown")
-    assert "Argus hunt report" in md
+    assert "Panoptes hunt report" in md
     assert "Exploit chains" in md
     brain.close()
 

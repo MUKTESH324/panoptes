@@ -1,4 +1,4 @@
-"""Command-line interface for Argus."""
+"""Command-line interface for Panoptes."""
 
 from __future__ import annotations
 
@@ -20,22 +20,21 @@ from .reporting.hunt import render_hunt
 from .scope import AuthorizationError, OutOfScopeError, Scope
 
 _BANNER = r"""
-    _
-   / \   _ __ __ _ _   _ ___   Argus v{v}
-  / _ \ | '__/ _` | | | / __|  AI-assisted web vuln scanner
- / ___ \| | | (_| | |_| \__ \  authorized testing only
-/_/   \_\_|  \__, |\__,_|___/
-             |___/
+  ___                     _            Panoptes v{v}
+ | _ \__ _ _ _  ___ _ __ | |_ ___ ___  the all-seeing eye
+ |  _/ _` | ' \/ _ \ '_ \|  _/ -_|_-<  AI-assisted web vuln scanner
+ |_| \__,_|_||_\___/ .__/ \__\___/__/  + agentic hunt mode
+                    |_|                authorized testing only
 """.format(v=__version__)
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="argus",
-        description="Argus — AI-assisted web vulnerability scanner for AUTHORIZED testing.",
+        prog="panoptes",
+        description="Panoptes — AI-assisted web vulnerability scanner for AUTHORIZED testing.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    p.add_argument("--version", action="version", version=f"argus {__version__}")
+    p.add_argument("--version", action="version", version=f"panoptes {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
     # scan
@@ -89,7 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     h.add_argument("--exclude", nargs="*", default=[], metavar="NAME", help="skip these plugins")
     h.add_argument("--strict", action="store_true",
                    help="drop likely-false-positive findings from the kept set")
-    h.add_argument("--brain", default=".argus/brain.db",
+    h.add_argument("--brain", default=".panoptes/brain.db",
                    help="path to the persistent brain database")
     h.add_argument("--no-brain", action="store_true", help="do not persist/diff this run")
     h.add_argument("--format", default="markdown", choices=["json", "markdown", "md"],
@@ -111,7 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
     b = sub.add_parser("brain", help="inspect the persistent scan memory")
     b.add_argument("action", choices=["stats"], help="what to show")
     b.add_argument("target", help="target URL to report on")
-    b.add_argument("--brain", default=".argus/brain.db", help="path to the brain database")
+    b.add_argument("--brain", default=".panoptes/brain.db", help="path to the brain database")
 
     # plugins
     sub.add_parser("plugins", help="list available check plugins")

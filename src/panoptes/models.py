@@ -1,4 +1,4 @@
-"""Core data models for Argus.
+"""Core data models for Panoptes.
 
 Plain dataclasses are used instead of a heavier modelling library so the package
 has a small dependency surface and is trivial to serialize.

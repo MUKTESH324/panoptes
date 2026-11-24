@@ -6,7 +6,7 @@ inspects responses already fetched) or *active* (issues additional requests).
 
 Writing a plugin is intentionally small:
 
-    from argus.plugins.base import Plugin, register
+    from panoptes.plugins.base import Plugin, register
 
     @register
     class MyCheck(Plugin):
