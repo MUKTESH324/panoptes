@@ -1,0 +1,40 @@
+# Argus example configuration.
+# Run:  argus scan --config config/argus.example.yaml --i-am-authorized
+
+target: "https://example.com"
+
+# Only these plugins (empty = all). See: argus plugins
+plugins: []
+exclude_plugins: []
+
+http:
+  timeout: 15.0
+  max_concurrency: 10
+  requests_per_second: 10.0
+  user_agent: "Argus/0.1 (+authorized-security-testing)"
+  verify_tls: true
+  follow_redirects: true
+  max_retries: 2
+
+crawl:
+  enabled: true
+  max_depth: 2
+  max_urls: 200
+  same_origin_only: true
+
+ai:
+  enabled: false
+  provider: "null"      # null | openai | anthropic | ollama
+  model: ""
+  api_key_env: ""       # e.g. OPENAI_API_KEY
+  base_url: ""
+  max_payloads: 8
+
+scope:
+  # Hosts Argus is permitted to touch (wildcards allowed, e.g. "*.example.com").
+  allow:
+    - "example.com"
+  deny: []
+  allow_private: false
+  # Must be true (or pass --i-am-authorized) for a scan to run.
+  authorized: false
