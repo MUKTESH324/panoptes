@@ -103,6 +103,10 @@ def build_parser() -> argparse.ArgumentParser:
     h.add_argument("--max-urls", type=int, help="cap on URLs to crawl")
     h.add_argument("--depth", type=int, help="max crawl depth")
     h.add_argument("--no-crawl", action="store_true", help="scan only the target URL")
+    h.add_argument("--render", action="store_true",
+                   help="also discover URLs with a headless browser (needs Playwright)")
+    h.add_argument("--stored-xss", action="store_true",
+                   help="test for stored XSS by submitting benign markers to forms (writes test data)")
     h.add_argument("--insecure", action="store_true", help="do not verify TLS certs")
     h.add_argument("--header", "-H", action="append", default=[], metavar="'Name: Value'",
                    help="extra header sent on every request (repeatable)")
@@ -183,6 +187,10 @@ def _load_config(args: argparse.Namespace) -> Config:
     if args.no_crawl:
         cfg.crawl.enabled = False
         cfg.crawl.max_depth = 0
+    if getattr(args, "render", False):
+        cfg.crawl.render = True
+    if getattr(args, "stored_xss", False):
+        cfg.stored_xss = True
     if args.ai_provider:
         cfg.ai.enabled = args.ai_provider != "null"
         cfg.ai.provider = args.ai_provider

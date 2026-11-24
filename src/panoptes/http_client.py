@@ -120,3 +120,12 @@ class ScopedHttpClient:
 
     async def post(self, url: str, **kwargs) -> httpx.Response:
         return await self.request("POST", url, **kwargs)
+
+    def session_cookies(self) -> dict:
+        """Current cookie jar as {name: value} (e.g. a login session)."""
+        if self._client is None:
+            return {}
+        try:
+            return {c.name: c.value for c in self._client.cookies.jar}
+        except Exception:  # noqa: BLE001
+            return {}

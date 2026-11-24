@@ -93,6 +93,7 @@ class Hunt:
         self.scope = scope
         self.brain = brain
         self.strict = strict
+        self._session_cookies: dict = {}
 
     async def run(self) -> HuntResult:
         self.scope.require_authorization()
@@ -132,6 +133,13 @@ class Hunt:
                     pages[self.config.target] = await client.get(self.config.target)
                 except Exception as exc:  # noqa: BLE001
                     result.errors.append(f"could not fetch target: {exc}")
+
+            # Optional JS-rendering discovery (headless browser) to expand surface.
+            if self.config.crawl.render:
+                await self._render_discover(client, pages, result)
+
+            # Snapshot the session (e.g. a login cookie) for post-crawl passes.
+            self._session_cookies = client.session_cookies()
 
             result.urls_scanned = len(pages)
 
@@ -184,6 +192,10 @@ class Hunt:
         if self.config.access.enabled:
             await self._access_pass(pages, raw, result)
 
+        # Stored-XSS pass (opt-in: submits benign test data to forms).
+        if self.config.stored_xss:
+            await self._stored_xss_pass(pages, raw, result)
+
         findings = dedupe_findings(raw)
 
         # Validation gate.
@@ -207,6 +219,50 @@ class Hunt:
 
         result.finished_at = time.time()
         return result
+
+    async def _render_discover(self, client, pages, result) -> None:
+        """Use a headless browser to discover more in-scope URLs, then fetch them."""
+        from .browser_crawler import BrowserCrawler
+
+        bc = BrowserCrawler(self.scope, max_pages=self.config.crawl.max_urls)
+        if not bc.available():
+            result.meta["rendered"] = False
+            result.errors.append(
+                "render requested but Playwright is not installed "
+                "(pip install 'panoptes-scanner[browser]' && playwright install chromium)"
+            )
+            return
+        session = {**self.config.auth.cookies, **client.session_cookies()}
+        found, errs = await bc.discover(self.config.target, cookies=session or None)
+        result.errors.extend(errs)
+        added = 0
+        for url in found:
+            if url in pages or len(pages) >= self.config.crawl.max_urls:
+                continue
+            try:
+                pages[url] = await client.get(url)
+                added += 1
+            except Exception:  # noqa: BLE001
+                continue
+        result.meta["rendered"] = True
+        result.meta["rendered_urls_added"] = added
+
+    async def _stored_xss_pass(self, pages, raw, result) -> None:
+        from .config import AuthConfig
+        from .stored_xss import find_stored_xss
+
+        auth = AuthConfig(
+            headers=dict(self.config.auth.headers),
+            cookies={**self.config.auth.cookies, **self._session_cookies},
+        )
+        try:
+            async with ScopedHttpClient(
+                self.scope, self.config.http, auth=auth,
+                cookie_domain=_hostname(self.config.target),
+            ) as client:
+                raw.extend(await find_stored_xss(pages, client))
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(f"stored-xss pass failed: {exc}")
 
     async def _access_pass(self, pages, raw, result) -> None:
         """Access-control / IDOR checks using fresh anonymous / user-B clients."""

@@ -42,8 +42,14 @@ architecture** that makes new checks a few lines of code.
   never aborts the scan. Ships with header, cookie, CORS, info-disclosure,
   reflected-XSS, error-based SQLi, open-redirect, **CSRF**, **JWT**, **SSRF**,
   **SSTI** (template injection), **path-traversal/LFI**, **command injection**,
-  and **exposed-files** discovery (.git / .env / backups / debug endpoints) —
-  14 checks in all.
+  **exposed-files** discovery (.git / .env / backups / debug endpoints),
+  **DOM-XSS** (static source→sink), and **stored-XSS** (submit → re-crawl →
+  detect persistence) — 15 checks in all.
+- 🌐 **JS-rendering crawler** (optional) — a headless-browser pass (Playwright)
+  that discovers SPA links and XHR/fetch API endpoints the static crawler can't
+  see, then feeds them to every check. Falls back gracefully when not installed.
+- 🔑 **Login macro & access-control** — auto-login via a form, then test for
+  missing authentication and **IDOR** across two identities.
 - 🧠 **Agentic hunt mode** — an attack **planner** (passive recon → targeted
   active checks), a **validation gate** that scores findings and drops likely
   false positives, **exploit-chain inference**, and a persistent **brain** that
@@ -172,6 +178,27 @@ panoptes hunt https://app.example.com --i-am-authorized \
 
 > Credentials on the command line are visible in your process list — prefer a
 > `login:` block in a config file, and use a throwaway/test account.
+
+### JS-rendering crawler & stored XSS
+
+```bash
+# Install the optional browser engine once
+pip install "panoptes-scanner[browser]" && playwright install chromium
+
+# Render pages with a headless browser to discover SPA links + API endpoints,
+# and test for stored XSS (this one submits a benign marker to forms)
+panoptes hunt https://app.example.com --i-am-authorized --render --stored-xss
+```
+
+- `--render` renders each page in headless Chromium, harvests links from the
+  live DOM and the XHR/fetch requests the app makes, and fetches those in-scope
+  URLs so every check runs on them. Without Playwright it degrades to the static
+  crawler with a note.
+- `--stored-xss` submits a unique `<panostored…>` marker through form fields,
+  re-crawls, and flags any page where it comes back **unencoded** (persistent
+  XSS). It **writes test data**, so use it only where you're authorized to.
+- **DOM-XSS** detection (static source→sink analysis of page JavaScript) runs
+  automatically — no browser needed.
 
 ### Port scan & recommended next steps
 

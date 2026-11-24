@@ -28,6 +28,7 @@ class CrawlConfig:
     max_depth: int = 2
     max_urls: int = 200
     same_origin_only: bool = True
+    render: bool = False  # use a headless browser (Playwright) to also discover URLs
 
 
 @dataclass
@@ -114,6 +115,7 @@ class Config:
     target: str = ""
     plugins: List[str] = field(default_factory=list)  # empty == all
     exclude_plugins: List[str] = field(default_factory=list)
+    stored_xss: bool = False  # opt-in: submits benign test data to forms
     http: HttpConfig = field(default_factory=HttpConfig)
     crawl: CrawlConfig = field(default_factory=CrawlConfig)
     ai: AIConfig = field(default_factory=AIConfig)
