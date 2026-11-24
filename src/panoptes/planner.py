@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 import httpx
 
 # Plugin classification used for phasing.
-PASSIVE_PLUGINS = ["security-headers", "cookie-flags", "info-disclosure"]
+PASSIVE_PLUGINS = ["security-headers", "cookie-flags", "info-disclosure", "csrf", "jwt"]
 ACTIVE_PLUGINS = ["cors-misconfig", "open-redirect", "reflected-xss", "sqli-error"]
 
 _WAF_SIGNS = {
