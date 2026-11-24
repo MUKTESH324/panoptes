@@ -1,0 +1,34 @@
+# Argus payload library — detection probes for authorized testing.
+# These are deliberately benign/self-identifying probes used to *detect*
+# injection points, not weaponized exploits. The {marker} placeholder is
+# substituted with a unique per-request token so reflections are unambiguous.
+
+xss:
+  - "<argus{marker}>"
+  - "\"'><argus{marker}>"
+  - "javascript:/*{marker}*/"
+  - "<svg/onload=/*{marker}*/>"
+
+sqli:
+  - "'"
+  - "')"
+  - "\" OR '1'='1' -- {marker}"
+  - "1) AND SLEEP(0)-- {marker}"   # zero-delay: timing-safe probe
+
+open_redirect:
+  - "https://argus-redirect-probe.example/{marker}"
+  - "//argus-redirect-probe.example/{marker}"
+  - "/\\argus-redirect-probe.example/{marker}"
+
+ssti:
+  - "argus{{{{7*7}}}}{marker}"
+  - "argus${{7*7}}{marker}"
+  - "argus#{{7*7}}{marker}"
+
+lfi:
+  - "../../../../etc/hostname%00{marker}"
+  - "....//....//etc/hostname"
+
+ssrf:
+  - "http://argus-ssrf-probe.example/{marker}"
+  - "http://[::1]/{marker}"

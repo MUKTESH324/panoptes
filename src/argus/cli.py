@@ -8,11 +8,15 @@ from typing import List, Optional
 
 from . import __version__
 from .ai import available_providers
+from .brain import Brain
 from .config import Config
 from .engine import Engine
+from .hunt import Hunt
 from .models import Severity
+from .payloads import vuln_types
 from .plugins.base import discover
 from .reporting import render
+from .reporting.hunt import render_hunt
 from .scope import AuthorizationError, OutOfScopeError, Scope
 
 _BANNER = r"""
@@ -69,10 +73,52 @@ def build_parser() -> argparse.ArgumentParser:
                    help="exit non-zero if any finding >= this severity")
     s.add_argument("-v", "--verbose", action="store_true")
 
+    # hunt (agentic: plan -> scan -> validate -> chain -> remember)
+    h = sub.add_parser("hunt", help="autonomous hunt: plan, scan, validate, chain, remember")
+    h.add_argument("target", nargs="?", help="target URL, e.g. https://example.com")
+    h.add_argument("--i-am-authorized", action="store_true",
+                   help="affirm you have explicit written permission to test the target")
+    h.add_argument("--config", help="path to a YAML config file")
+    h.add_argument("--scope", nargs="*", default=[], metavar="HOST",
+                   help="additional in-scope hosts/wildcards")
+    h.add_argument("--deny", nargs="*", default=[], metavar="HOST", help="hosts to exclude")
+    h.add_argument("--allow-private", action="store_true",
+                   help="permit private/internal addresses (dangerous)")
+    h.add_argument("--plugins", nargs="*", default=[], metavar="NAME",
+                   help="restrict the plan to these plugins")
+    h.add_argument("--exclude", nargs="*", default=[], metavar="NAME", help="skip these plugins")
+    h.add_argument("--strict", action="store_true",
+                   help="drop likely-false-positive findings from the kept set")
+    h.add_argument("--brain", default=".argus/brain.db",
+                   help="path to the persistent brain database")
+    h.add_argument("--no-brain", action="store_true", help="do not persist/diff this run")
+    h.add_argument("--format", default="markdown", choices=["json", "markdown", "md"],
+                   help="hunt report format")
+    h.add_argument("--output", "-o", help="write report to file instead of stdout")
+    h.add_argument("--rps", type=float, help="max requests per second")
+    h.add_argument("--max-urls", type=int, help="cap on URLs to crawl")
+    h.add_argument("--depth", type=int, help="max crawl depth")
+    h.add_argument("--no-crawl", action="store_true", help="scan only the target URL")
+    h.add_argument("--insecure", action="store_true", help="do not verify TLS certs")
+    h.add_argument("--ai-provider", choices=available_providers(),
+                   help="enable an AI payload provider")
+    h.add_argument("--ai-model", help="model name for the AI provider")
+    h.add_argument("--fail-on", choices=[str(x) for x in Severity],
+                   help="exit non-zero if any kept finding >= this severity")
+    h.add_argument("-v", "--verbose", action="store_true")
+
+    # brain
+    b = sub.add_parser("brain", help="inspect the persistent scan memory")
+    b.add_argument("action", choices=["stats"], help="what to show")
+    b.add_argument("target", help="target URL to report on")
+    b.add_argument("--brain", default=".argus/brain.db", help="path to the brain database")
+
     # plugins
     sub.add_parser("plugins", help="list available check plugins")
     # providers
     sub.add_parser("providers", help="list available AI providers")
+    # payloads
+    sub.add_parser("payloads", help="list payload library vuln classes")
     return p
 
 
@@ -164,6 +210,89 @@ def _cmd_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_hunt(args: argparse.Namespace) -> int:
+    if not args.target and not args.config:
+        print("error: a target URL or --config is required", file=sys.stderr)
+        return 2
+    cfg = _load_config(args)
+    if not cfg.target:
+        print("error: no target specified", file=sys.stderr)
+        return 2
+
+    scope = Scope(
+        allow=cfg.scope.allow or _host_list(cfg.target),
+        deny=cfg.scope.deny,
+        allow_private=cfg.scope.allow_private,
+        authorized=cfg.scope.authorized,
+    )
+    if args.verbose:
+        print(_BANNER, file=sys.stderr)
+        print(f"[*] hunting: {cfg.target}  scope={scope.allow}", file=sys.stderr)
+
+    try:
+        scope.require_authorization()
+    except AuthorizationError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+
+    brain = None if args.no_brain else Brain(args.brain)
+    try:
+        import asyncio
+
+        hunt = asyncio.run(Hunt(cfg, scope, brain=brain, strict=args.strict).run())
+    except OutOfScopeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+    except KeyboardInterrupt:  # pragma: no cover
+        print("aborted", file=sys.stderr)
+        return 130
+    finally:
+        if brain is not None:
+            brain.close()
+
+    report = render_hunt(hunt, args.format)
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as fh:
+            fh.write(report)
+        print(f"[+] wrote {args.format} hunt report to {args.output}", file=sys.stderr)
+        if hunt.validation:
+            s = hunt.validation.summary()
+            print(
+                f"[+] confirmed={s['confirmed']} needs-review={s['needs_review']} "
+                f"dropped-fp={s['likely_fp']} chains={len(hunt.chains)}",
+                file=sys.stderr,
+            )
+    else:
+        print(report)
+
+    if args.fail_on:
+        threshold = Severity.from_name(args.fail_on)
+        if any(f.severity >= threshold for f in hunt.findings):
+            return 1
+    return 0
+
+
+def _cmd_brain(args: argparse.Namespace) -> int:
+    brain = Brain(args.brain)
+    try:
+        if args.action == "stats":
+            s = brain.stats(args.target)
+            print(f"brain: {args.brain}")
+            print(f"target: {args.target}")
+            print(f"  runs: {s.pop('runs', 0)}")
+            for sev in ("critical", "high", "medium", "low", "info"):
+                print(f"  {sev:9s}: {s.get(sev, 0)} open")
+    finally:
+        brain.close()
+    return 0
+
+
+def _cmd_payloads(_args: argparse.Namespace) -> int:
+    for vt in vuln_types():
+        print(f"  {vt}")
+    return 0
+
+
 def _cmd_plugins(_args: argparse.Namespace) -> int:
     for name, cls in sorted(discover().items()):
         kind = "passive" if getattr(cls, "passive", True) else "active "
@@ -199,10 +328,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "scan":
         return _cmd_scan(args)
+    if args.command == "hunt":
+        return _cmd_hunt(args)
+    if args.command == "brain":
+        return _cmd_brain(args)
     if args.command == "plugins":
         return _cmd_plugins(args)
     if args.command == "providers":
         return _cmd_providers(args)
+    if args.command == "payloads":
+        return _cmd_payloads(args)
     parser.print_help()
     return 2
 

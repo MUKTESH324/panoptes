@@ -26,3 +26,23 @@ def test_scan_without_authorization_refuses(capsys):
 def test_scan_requires_target(capsys):
     rc = main(["scan"])
     assert rc == 2
+
+
+def test_payloads_command_lists(capsys):
+    assert main(["payloads"]) == 0
+    out = capsys.readouterr().out
+    assert "xss" in out and "ssrf" in out
+
+
+def test_hunt_without_authorization_refuses(capsys):
+    rc = main(["hunt", "https://example.com", "--no-brain"])
+    assert rc == 3
+    assert "authorization" in capsys.readouterr().err.lower()
+
+
+def test_brain_stats_empty(tmp_path, capsys):
+    db = str(tmp_path / "b.db")
+    rc = main(["brain", "stats", "https://example.com", "--brain", db])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "runs: 0" in out

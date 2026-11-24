@@ -16,8 +16,17 @@ Argus crawls a target, runs a plugin suite of non-destructive vulnerability
 checks, and (optionally) uses an LLM to generate context-aware payloads. It
 produces findings you can export to **JSON, SARIF, Markdown, or HTML**.
 
-It is a clean, modern take on the "AI-driven scanner" idea, built around three
-principles the original space often skips: **a hard authorization gate**, **a
+It has two modes:
+
+- **`argus scan`** — the scanner: crawl + plugin checks + report.
+- **`argus hunt`** — the agentic layer on top: lightweight recon, then it
+  **plans** which checks the surface warrants, runs them, **validates** each
+  finding to drop likely false positives, **infers exploit chains** (how issues
+  compound into something worse), and **remembers** results in a persistent
+  "brain" so later runs show only what *changed*.
+
+It is a clean, modern take on the "AI-driven scanner / bug-bounty agent" idea,
+built around principles the space often skips: **a hard authorization gate**, **a
 strict scope allowlist on every request**, and **an isolated plugin
 architecture** that makes new checks a few lines of code.
 
@@ -32,14 +41,20 @@ architecture** that makes new checks a few lines of code.
 - 🧩 **Plugin architecture** — each check is an isolated plugin; a failing plugin
   never aborts the scan. Ships with header, cookie, CORS, info-disclosure,
   reflected-XSS, error-based SQLi, and open-redirect checks.
+- 🧠 **Agentic hunt mode** — an attack **planner** (passive recon → targeted
+  active checks), a **validation gate** that scores findings and drops likely
+  false positives, **exploit-chain inference**, and a persistent **brain** that
+  diffs each run against the last (retest workflow).
 - 🤖 **Pluggable AI** — optional payload generation via OpenAI-compatible,
   Anthropic, or local **Ollama** models, with automatic failover. Runs fully
   without any API key.
+- 🎯 **Payload library** — a structured, data-driven payload set (XSS, SQLi,
+  SSTI, LFI, SSRF, open-redirect) with unique per-probe markers.
 - 🕸️ **Async engine** — concurrency limits + a token-bucket rate limiter so you
   stay polite and in control.
 - 📊 **Real reports** — SARIF for GitHub code scanning / CI, plus
   HackerOne-style Markdown and a self-contained HTML report.
-- ✅ **Tested** — unit tests with no network dependency, lint, type-check, and
+- ✅ **Tested** — 74 unit/integration tests, lint, type-check, and
   CI across Python 3.9–3.12.
 
 ## Install
@@ -76,6 +91,29 @@ argus scan https://example.com --i-am-authorized \
 # Enable AI payloads with a local Ollama model (nothing leaves your host)
 argus scan https://example.com --i-am-authorized --ai-provider ollama --ai-model llama3
 ```
+
+### Hunt mode (plan → scan → validate → chain → remember)
+
+```bash
+# Autonomous hunt: recon, plan, validate findings, infer chains, remember results
+argus hunt https://example.com --i-am-authorized
+
+# Strict mode drops likely false positives; persist to a chosen brain DB
+argus hunt https://example.com --i-am-authorized --strict --brain .argus/acme.db
+
+# What changed since the last run? Run it again — the report shows new/known/resolved.
+argus hunt https://example.com --i-am-authorized --brain .argus/acme.db
+
+# Inspect the persistent memory for a target
+argus brain stats https://example.com --brain .argus/acme.db
+
+# List the payload library classes
+argus payloads
+```
+
+A hunt report includes the attack plan and rationale, a validation summary
+(confirmed / needs-review / dropped false positives), inferred **exploit
+chains**, and a **diff** against the previous run.
 
 Or drive everything from a config file:
 

@@ -144,8 +144,14 @@ class ScanResult:
 
 
 def _normalize_url(url: str) -> str:
-    """Lowercase host, drop fragment and trailing slash for fingerprinting."""
-    from urllib.parse import urlsplit, urlunsplit
+    """Normalize a URL for fingerprinting.
+
+    Lowercases host, drops the fragment and trailing slash, and keeps query
+    parameter *names* while discarding their *values*. Dropping values is
+    important: injection probes embed a unique per-run marker in the value, so
+    keeping it would make the same issue look new on every scan.
+    """
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
     try:
         parts = urlsplit(url)
@@ -153,4 +159,6 @@ def _normalize_url(url: str) -> str:
         return url
     netloc = parts.netloc.lower()
     path = parts.path.rstrip("/") or "/"
-    return urlunsplit((parts.scheme.lower(), netloc, path, parts.query, ""))
+    keys = sorted((k, "") for k, _ in parse_qsl(parts.query, keep_blank_values=True))
+    query = urlencode(keys)
+    return urlunsplit((parts.scheme.lower(), netloc, path, query, ""))

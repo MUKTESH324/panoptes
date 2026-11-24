@@ -43,6 +43,9 @@ Issues = "https://github.com/muktesh/argus/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+argus = ["data/*.yaml"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
