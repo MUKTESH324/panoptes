@@ -41,8 +41,8 @@ architecture** that makes new checks a few lines of code.
 - 🧩 **Plugin architecture** — each check is an isolated plugin; a failing plugin
   never aborts the scan. Ships with header, cookie, CORS, info-disclosure,
   reflected-XSS, error-based SQLi, open-redirect, **CSRF** (forms without an
-  anti-CSRF token), and **JWT** (alg:none, missing expiry, token-in-URL, claim
-  leakage) checks.
+  anti-CSRF token), **JWT** (alg:none, missing expiry, token-in-URL, claim
+  leakage), and **SSRF** (server-side fetch sinks) checks.
 - 🧠 **Agentic hunt mode** — an attack **planner** (passive recon → targeted
   active checks), a **validation gate** that scores findings and drops likely
   false positives, **exploit-chain inference**, and a persistent **brain** that
