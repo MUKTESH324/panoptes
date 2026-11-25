@@ -21,11 +21,12 @@ import httpx
 # Plugin classification used for phasing.
 PASSIVE_PLUGINS = [
     "security-headers", "cookie-flags", "info-disclosure", "csrf", "jwt",
-    "dom-xss", "websocket", "deserialization",
+    "dom-xss", "websocket", "deserialization", "privilege-params",
 ]
 ACTIVE_PLUGINS = [
     "cors-misconfig", "open-redirect", "reflected-xss", "sqli-error", "ssrf",
     "ssti", "path-traversal", "command-injection", "exposed-files", "graphql", "xxe",
+    "method-tampering",
 ]
 
 _WAF_SIGNS = {

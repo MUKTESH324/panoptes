@@ -45,8 +45,11 @@ architecture** that makes new checks a few lines of code.
   **exposed-files** discovery (.git / .env / backups / debug endpoints),
   **DOM-XSS**, **stored-XSS**, **XXE** (in-band file read), **deserialization**
   indicators, **WebSocket** (cleartext ws://), **GraphQL** (introspection +
-  query-abuse: field suggestions, batching), and **auth rate-limit** — 19 checks
-  in all.
+  query-abuse: field suggestions, batching), **auth rate-limit**,
+  **method-tampering** (verb/override access-control bypass), and
+  **privilege-params** (role/privilege parameter-tampering candidates) — 21
+  checks in all, plus the two-identity authorization pass (IDOR, vertical
+  privilege escalation, multi-tenant isolation).
 - 🌐 **JS-rendering crawler** (optional) — a headless-browser pass (Playwright)
   that discovers SPA links and XHR/fetch API endpoints the static crawler can't
   see, then feeds them to every check. Falls back gracefully when not installed.
