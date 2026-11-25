@@ -107,6 +107,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="also discover URLs with a headless browser (needs Playwright)")
     h.add_argument("--stored-xss", action="store_true",
                    help="test for stored XSS by submitting benign markers to forms (writes test data)")
+    h.add_argument("--auth-ratelimit", action="store_true",
+                   help="test login throttling with failed logins for a random user (needs --login-url)")
     h.add_argument("--insecure", action="store_true", help="do not verify TLS certs")
     h.add_argument("--header", "-H", action="append", default=[], metavar="'Name: Value'",
                    help="extra header sent on every request (repeatable)")
@@ -198,6 +200,8 @@ def _load_config(args: argparse.Namespace) -> Config:
         cfg.crawl.render = True
     if getattr(args, "stored_xss", False):
         cfg.stored_xss = True
+    if getattr(args, "auth_ratelimit", False):
+        cfg.auth_ratelimit = True
     if args.ai_provider:
         cfg.ai.enabled = args.ai_provider != "null"
         cfg.ai.provider = args.ai_provider

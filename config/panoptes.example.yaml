@@ -60,6 +60,11 @@ access:
   idor_headers: {}        # a SECOND identity (user B) for IDOR comparison
   idor_cookies: {}        # e.g. {"session": "<user-B-session>"}
 
+# Opt-in auth rate-limit test (sends failed logins for a RANDOM username so the
+# real account is never locked). Needs the login: block above.
+# Set at the CLI with --auth-ratelimit, or under the top level:
+# auth_ratelimit: false
+
 # Content / parameter discovery (wordlist brute-forcing).
 discovery:
   enabled: false

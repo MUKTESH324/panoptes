@@ -43,8 +43,10 @@ architecture** that makes new checks a few lines of code.
   reflected-XSS, error-based SQLi, open-redirect, **CSRF**, **JWT**, **SSRF**,
   **SSTI** (template injection), **path-traversal/LFI**, **command injection**,
   **exposed-files** discovery (.git / .env / backups / debug endpoints),
-  **DOM-XSS** (static source→sink), and **stored-XSS** (submit → re-crawl →
-  detect persistence) — 15 checks in all.
+  **DOM-XSS**, **stored-XSS**, **XXE** (in-band file read), **deserialization**
+  indicators, **WebSocket** (cleartext ws://), **GraphQL** (introspection +
+  query-abuse: field suggestions, batching), and **auth rate-limit** — 19 checks
+  in all.
 - 🌐 **JS-rendering crawler** (optional) — a headless-browser pass (Playwright)
   that discovers SPA links and XHR/fetch API endpoints the static crawler can't
   see, then feeds them to every check. Falls back gracefully when not installed.

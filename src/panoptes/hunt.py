@@ -215,6 +215,18 @@ class Hunt:
         if self.config.stored_xss:
             await self._stored_xss_pass(pages, raw, result)
 
+        # Auth rate-limit pass (opt-in: sends failed logins for a random user).
+        if self.config.auth_ratelimit and self.config.login.url:
+            from .authratelimit import check_auth_rate_limit
+            try:
+                async with ScopedHttpClient(
+                    self.scope, self.config.http,
+                    cookie_domain=hostname(self.config.target),
+                ) as arl_client:
+                    raw.extend(await check_auth_rate_limit(self.config.login, arl_client))
+            except Exception as exc:  # noqa: BLE001
+                result.errors.append(f"auth rate-limit check failed: {exc}")
+
         # Optional nuclei pass (known-CVE / templated coverage).
         if self.config.nuclei.enabled:
             from .nuclei import run_nuclei

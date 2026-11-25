@@ -132,6 +132,7 @@ class Config:
     plugins: List[str] = field(default_factory=list)  # empty == all
     exclude_plugins: List[str] = field(default_factory=list)
     stored_xss: bool = False  # opt-in: submits benign test data to forms
+    auth_ratelimit: bool = False  # opt-in: sends failed logins to test throttling
     http: HttpConfig = field(default_factory=HttpConfig)
     crawl: CrawlConfig = field(default_factory=CrawlConfig)
     ai: AIConfig = field(default_factory=AIConfig)

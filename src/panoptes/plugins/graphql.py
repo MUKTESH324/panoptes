@@ -9,6 +9,8 @@ query, never mutations.
 
 from __future__ import annotations
 
+import json
+import secrets
 from typing import Set
 from urllib.parse import urlsplit
 
@@ -78,6 +80,7 @@ class GraphQL(Plugin):
                     url=url,
                     tags=["graphql", "active"],
                 )
+                await self._abuse_tests(ctx, url)
                 return
             # Reachable endpoint but introspection blocked — still worth noting.
             self._report(
@@ -91,5 +94,59 @@ class GraphQL(Plugin):
                 url=url,
                 tags=["graphql", "active"],
             )
+            await self._abuse_tests(ctx, url)
             return
+
+    async def _abuse_tests(self, ctx: ScanContext, url: str) -> None:
+        """Query-abuse checks on a confirmed GraphQL endpoint."""
+        # Field-suggestion leakage: a misspelled field triggers "Did you mean".
+        token = secrets.token_hex(3)
+        try:
+            resp = await ctx.client.post(
+                url, json={"query": "query{__typename panoptes_nope_" + token + "}"})
+            if "did you mean" in response_text(resp).lower():
+                self._report(
+                    ctx,
+                    title="GraphQL field suggestions enabled (schema leakage)",
+                    severity=Severity.LOW,
+                    description=(
+                        "Error messages suggest valid field names ('Did you "
+                        "mean…'), letting an attacker reconstruct the schema even "
+                        "when introspection is disabled."
+                    ),
+                    confidence=Confidence.FIRM,
+                    cwe="CWE-200",
+                    evidence="Misspelled field returned a 'Did you mean' suggestion.",
+                    remediation="Disable field suggestions in production error responses.",
+                    url=url,
+                    tags=["graphql", "abuse", "active"],
+                )
+        except Exception:  # noqa: BLE001
+            pass
+
+        # Query batching: an array of queries processed together enables
+        # request amplification (e.g. brute forcing within one HTTP request).
+        try:
+            resp = await ctx.client.post(
+                url, json=[{"query": "{__typename}"}, {"query": "{__typename}"}])
+            data = json.loads(response_text(resp))
+            if isinstance(data, list) and len(data) >= 2:
+                self._report(
+                    ctx,
+                    title="GraphQL query batching enabled (amplification)",
+                    severity=Severity.LOW,
+                    description=(
+                        "The endpoint executes batched query arrays, so one HTTP "
+                        "request can run many operations — useful for brute force "
+                        "and for bypassing per-request rate limits."
+                    ),
+                    confidence=Confidence.FIRM,
+                    cwe="CWE-770",
+                    evidence="A 2-query batch array returned 2 results.",
+                    remediation="Disable array batching or enforce per-operation limits.",
+                    url=url,
+                    tags=["graphql", "abuse", "active"],
+                )
+        except Exception:  # noqa: BLE001
+            pass
 
