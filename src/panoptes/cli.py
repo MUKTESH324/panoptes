@@ -96,7 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     h.add_argument("--brain", default=".panoptes/brain.db",
                    help="path to the persistent brain database")
     h.add_argument("--no-brain", action="store_true", help="do not persist/diff this run")
-    h.add_argument("--format", default="markdown", choices=["json", "markdown", "md"],
+    h.add_argument("--format", default="markdown", choices=["json", "markdown", "md", "html"],
                    help="hunt report format")
     h.add_argument("--output", "-o", help="write report to file instead of stdout")
     h.add_argument("--rps", type=float, help="max requests per second")

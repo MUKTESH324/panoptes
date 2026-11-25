@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import datetime as _dt
+import html as _html
 import json
+from typing import Dict, List, Tuple
 
-from ..models import Severity
+from ..models import Confidence, Finding, Severity
 
 _EMOJI = {
     Severity.CRITICAL: "🟥",
@@ -12,6 +15,13 @@ _EMOJI = {
     Severity.MEDIUM: "🟨",
     Severity.LOW: "🟦",
     Severity.INFO: "⬜",
+}
+_COLOR = {
+    Severity.CRITICAL: "#b91c1c",
+    Severity.HIGH: "#ea580c",
+    Severity.MEDIUM: "#ca8a04",
+    Severity.LOW: "#2563eb",
+    Severity.INFO: "#64748b",
 }
 
 
@@ -134,10 +144,191 @@ def render_hunt_markdown(hunt) -> str:
     return "\n".join(lines)
 
 
+class _Group:
+    """One finding deduped across hosts/URLs."""
+
+    def __init__(self, finding: Finding) -> None:
+        self.finding = finding
+        self.urls: List[str] = []
+
+
+def _dedupe_cross_host(findings: List[Finding]) -> List[_Group]:
+    """Collapse the same issue (plugin+title+cwe+severity) across hosts/URLs."""
+    groups: Dict[Tuple, _Group] = {}
+    for f in findings:
+        key = (int(f.severity), f.plugin, f.title, f.cwe or "")
+        g = groups.get(key)
+        if g is None:
+            g = groups[key] = _Group(f)
+        g.urls.append(f.url)
+        # keep the most confident representative
+        if f.confidence > g.finding.confidence:
+            g.finding = f
+    items = list(groups.values())
+    items.sort(key=lambda g: (-int(g.finding.severity),
+                              -int(g.finding.confidence), g.finding.title))
+    return items
+
+
+def _is_authz(f: Finding) -> bool:
+    return "authz" in f.tags or f.plugin == "access-control"
+
+
+def render_hunt_html(hunt) -> str:
+    e = _html.escape
+    groups = _dedupe_cross_host(hunt.findings)
+    confirmed = [g for g in groups if g.finding.confidence == Confidence.CERTAIN]
+
+    counts = {s: 0 for s in Severity}
+    for g in groups:
+        counts[g.finding.severity] += 1
+    when = _dt.datetime.utcfromtimestamp(hunt.started_at).strftime("%Y-%m-%d %H:%M UTC")
+
+    chips = "".join(
+        f'<span class="chip" style="--c:{_COLOR[s]}">{s.name.title()} '
+        f'{counts[s]}</span>'
+        for s in sorted(Severity, reverse=True) if counts[s]
+    )
+    meta_bits = [f"Target <code>{e(hunt.target)}</code>", when,
+                 f"{hunt.urls_scanned} URLs", f"{hunt.duration:.1f}s",
+                 f"{len(groups)} findings"]
+    if confirmed:
+        meta_bits.append(f"<strong>{len(confirmed)} confirmed</strong>")
+    if hunt.chains:
+        meta_bits.append(f"{len(hunt.chains)} chains")
+
+    sections = []
+
+    # Confirmed / high-confidence findings first.
+    if confirmed:
+        sections.append('<h2>✅ Confirmed findings</h2>'
+                        + "".join(_card_html(g, e, confirmed=True) for g in confirmed))
+
+    # Exploit chains.
+    if hunt.chains:
+        chain_cards = []
+        for c in hunt.chains:
+            sev = Severity.from_name(c.severity.name)
+            chain_cards.append(
+                f'<article class="finding" style="--c:{_COLOR[sev]}">'
+                f'<header><span class="sev">{sev.name}</span>'
+                f'<h3>🔗 {e(c.name)}</h3></header>'
+                f'<p>{e(c.narrative)}</p>'
+                f'<p class="muted">Components: {e(", ".join(c.components))}</p></article>')
+        sections.append("<h2>Exploit chains</h2>" + "".join(chain_cards))
+
+    # Findings grouped by severity (confirmed ones already shown above are
+    # repeated here within their severity band for completeness).
+    by_sev = "".join(_severity_block(sev, groups, e) for sev in sorted(Severity, reverse=True))
+    sections.append("<h2>All findings by severity</h2>" + (by_sev or "<p>No findings.</p>"))
+
+    # Open ports, recommendations, diff.
+    if hunt.ports is not None and hunt.ports.open_ports:
+        rows = "".join(f"<tr><td>{p.port}/tcp</td><td>{e(p.service)}</td>"
+                       f"<td>{e(p.banner) or '—'}</td></tr>" for p in hunt.ports.open_ports)
+        sections.append(f"<h2>Open ports ({e(hunt.ports.method)})</h2>"
+                        "<table><tr><th>Port</th><th>Service</th><th>Banner</th></tr>"
+                        + rows + "</table>")
+    if hunt.recommendations:
+        recs = "".join(f"<li><strong>{e(r.title)}</strong> — {e(r.detail)}"
+                       + (f' <em>({e(", ".join(r.tools))})</em>' if r.tools else "")
+                       + "</li>" for r in hunt.recommendations)
+        sections.append("<h2>Recommended next steps</h2><ul class='recs'>" + recs + "</ul>")
+    if hunt.diff:
+        d = hunt.diff
+        sections.append(f"<h2>Changes since last run</h2><p>🆕 {len(d.new)} new · "
+                        f"♻️ {len(d.known)} known · ✅ {len(d.resolved)} resolved</p>")
+
+    return _PAGE.format(title=e(hunt.target), meta=" · ".join(meta_bits),
+                        chips=chips, body="\n".join(sections))
+
+
+def _severity_block(sev: Severity, groups: List[_Group], e) -> str:
+    rows = [g for g in groups if g.finding.severity == sev]
+    if not rows:
+        return ""
+    return (f'<h3 class="sevhead" style="--c:{_COLOR[sev]}">{_EMOJI[sev]} '
+            f'{sev.name.title()} ({len(rows)})</h3>'
+            + "".join(_card_html(g, e) for g in rows))
+
+
+def _card_html(g: _Group, e, confirmed: bool = False) -> str:
+    f = g.finding
+    badges = f'<span class="sev">{f.severity.name}</span>'
+    if f.confidence == Confidence.CERTAIN:
+        badges += '<span class="badge confirmed">confirmed</span>'
+    elif str(f.confidence) == "tentative":
+        badges += '<span class="badge review">needs review</span>'
+    if _is_authz(f):
+        badges += '<span class="badge authz">authz</span>'
+
+    uniq = list(dict.fromkeys(g.urls))
+    shown = "".join(f"<li><code>{e(u)}</code></li>" for u in uniq[:5])
+    more = f"<li class='muted'>+{len(uniq) - 5} more</li>" if len(uniq) > 5 else ""
+    meta = []
+    if f.cwe:
+        meta.append(e(f.cwe))
+    if f.owasp:
+        meta.append(e(f.owasp))
+    meta.append(f"plugin <code>{e(f.plugin)}</code>")
+    ev = f'<h4>Evidence</h4><pre>{e(f.evidence)}</pre>' if f.evidence else ""
+    fix = f'<h4>Fix</h4><p>{e(f.remediation)}</p>' if f.remediation else ""
+    return (f'<article class="finding" style="--c:{_COLOR[f.severity]}">'
+            f'<header>{badges}<h3>{e(f.title)}</h3></header>'
+            f'<p class="muted">{" · ".join(meta)}</p>'
+            f'<p>{e(f.description)}</p>'
+            f'<h4>Affected ({len(uniq)})</h4><ul class="urls">{shown}{more}</ul>'
+            f'{ev}{fix}</article>')
+
+
+_PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panoptes hunt — {title}</title>
+<style>
+  :root {{ color-scheme: light dark; --bg:#fff; --fg:#111827; --muted:#6b7280; --card:#f9fafb; --border:#e5e7eb; }}
+  @media (prefers-color-scheme: dark) {{ :root {{ --bg:#0b0f17; --fg:#e5e7eb; --muted:#9ca3af; --card:#111827; --border:#1f2937; }} }}
+  * {{ box-sizing: border-box; }}
+  body {{ margin:0; padding:2rem 1rem; font:15px/1.6 system-ui,sans-serif; background:var(--bg); color:var(--fg); }}
+  .wrap {{ max-width: 960px; margin:0 auto; }}
+  h1 {{ font-size:1.6rem; margin:0 0 .25rem; }}
+  h2 {{ margin:2rem 0 .75rem; font-size:1.2rem; border-bottom:1px solid var(--border); padding-bottom:.3rem; }}
+  .sevhead {{ margin:1.25rem 0 .5rem; color:var(--c); }}
+  .meta {{ color:var(--muted); margin-bottom:1rem; }}
+  .chips {{ display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1rem; }}
+  .chip {{ padding:.25rem .6rem; border-radius:999px; font-size:.8rem; font-weight:600; color:#fff; background:var(--c); }}
+  .finding {{ border:1px solid var(--border); border-left:5px solid var(--c); background:var(--card); border-radius:10px; padding:1rem 1.25rem; margin:.75rem 0; }}
+  .finding header {{ display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }}
+  .finding h3 {{ margin:0; font-size:1.05rem; }}
+  .sev {{ background:var(--c); color:#fff; font-size:.68rem; font-weight:700; padding:.15rem .5rem; border-radius:6px; }}
+  .badge {{ font-size:.66rem; font-weight:700; padding:.15rem .5rem; border-radius:6px; text-transform:uppercase; }}
+  .badge.confirmed {{ background:#065f46; color:#d1fae5; }}
+  .badge.review {{ background:#374151; color:#e5e7eb; }}
+  .badge.authz {{ background:#6d28d9; color:#ede9fe; }}
+  .muted {{ color:var(--muted); font-size:.85rem; }}
+  .urls {{ margin:.35rem 0; padding-left:1.1rem; }}
+  pre {{ background:rgba(127,127,127,.12); padding:.6rem; border-radius:8px; overflow:auto; font-size:.85rem; }}
+  code {{ font-family:ui-monospace,monospace; }}
+  table {{ border-collapse:collapse; width:100%; }}
+  th,td {{ text-align:left; padding:.35rem .6rem; border-bottom:1px solid var(--border); }}
+  .recs li {{ margin:.3rem 0; }}
+  footer {{ color:var(--muted); font-size:.8rem; margin-top:2rem; }}
+</style></head>
+<body><div class="wrap">
+<h1>Panoptes hunt report</h1>
+<div class="meta">{meta}</div>
+<div class="chips">{chips}</div>
+{body}
+<footer>Generated by Panoptes — authorized security testing only.</footer>
+</div></body></html>"""
+
+
 def render_hunt(hunt, fmt: str) -> str:
     fmt = fmt.lower()
     if fmt == "json":
         return render_hunt_json(hunt)
     if fmt in ("markdown", "md"):
         return render_hunt_markdown(hunt)
-    raise ValueError(f"hunt supports json|markdown, not {fmt!r}")
+    if fmt == "html":
+        return render_hunt_html(hunt)
+    raise ValueError(f"hunt supports json|markdown|html, not {fmt!r}")
