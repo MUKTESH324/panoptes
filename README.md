@@ -48,8 +48,13 @@ architecture** that makes new checks a few lines of code.
 - 🌐 **JS-rendering crawler** (optional) — a headless-browser pass (Playwright)
   that discovers SPA links and XHR/fetch API endpoints the static crawler can't
   see, then feeds them to every check. Falls back gracefully when not installed.
-- 🔑 **Login macro & access-control** — auto-login via a form, then test for
-  missing authentication and **IDOR** across two identities.
+- 🔑 **Login macro & access-control** — auto-login via a form, mid-scan
+  **session re-auth**, then test for missing authentication and **IDOR** across
+  two identities.
+- 🗂️ **Content & parameter discovery** — wordlist brute-forcing with soft-404
+  filtering; discovered pages feed back into every check.
+- 🧬 **GraphQL** checks (endpoint + introspection) and optional **nuclei**
+  integration for known-CVE coverage.
 - 🧠 **Agentic hunt mode** — an attack **planner** (passive recon → targeted
   active checks), a **validation gate** that scores findings and drops likely
   false positives, **exploit-chain inference**, and a persistent **brain** that
@@ -199,6 +204,28 @@ panoptes hunt https://app.example.com --i-am-authorized --render --stored-xss
   XSS). It **writes test data**, so use it only where you're authorized to.
 - **DOM-XSS** detection (static source→sink analysis of page JavaScript) runs
   automatically — no browser needed.
+
+### Discovery, nuclei & GraphQL
+
+```bash
+# Content + parameter discovery (wordlist brute-forcing); custom wordlist optional
+panoptes hunt https://example.com --i-am-authorized --discover --wordlist words.txt
+
+# Fold in nuclei (needs the nuclei binary) for known-CVE / templated coverage
+panoptes hunt https://example.com --i-am-authorized --nuclei
+
+# Mid-scan session re-auth: re-login automatically if a page looks logged out
+panoptes hunt https://app.example.com --i-am-authorized \
+    --login-url .../login --login-user alice --login-pass 's3cret' \
+    --login-success "Log out" --login-logged-out "Sign in"
+```
+
+- **Discovery** probes a wordlist of common paths (with a random-path soft-404
+  baseline so catch-all 200s don't cause noise) and mines reflected hidden
+  parameters; 200 hits are added to the scan surface.
+- **GraphQL** detection + introspection runs automatically as a check plugin.
+- **nuclei** is an optional external tool; parsing of its JSONL output is
+  built-in, and Panoptes degrades gracefully when the binary isn't installed.
 
 ### Port scan & recommended next steps
 

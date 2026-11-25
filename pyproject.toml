@@ -47,7 +47,7 @@ Issues = "https://github.com/MUKTESH324/panoptes/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-panoptes = ["data/*.yaml"]
+panoptes = ["data/*.yaml", "data/*.txt"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

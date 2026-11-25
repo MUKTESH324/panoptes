@@ -97,6 +97,22 @@ class LoginConfig:
 
 
 @dataclass
+class DiscoveryConfig:
+    enabled: bool = False
+    wordlist: str = ""       # path to a custom content wordlist (built-in if blank)
+    params: str = ""         # path to a custom parameter wordlist (built-in if blank)
+    max_words: int = 400
+    max_params: int = 120
+
+
+@dataclass
+class NucleiConfig:
+    enabled: bool = False
+    timeout: float = 300.0
+    extra_args: List[str] = field(default_factory=list)
+
+
+@dataclass
 class AccessControlConfig:
     """Access-control / IDOR testing options."""
 
@@ -124,6 +140,8 @@ class Config:
     login: LoginConfig = field(default_factory=LoginConfig)
     portscan: PortScanConfig = field(default_factory=PortScanConfig)
     access: AccessControlConfig = field(default_factory=AccessControlConfig)
+    discovery: DiscoveryConfig = field(default_factory=DiscoveryConfig)
+    nuclei: NucleiConfig = field(default_factory=NucleiConfig)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Config":
@@ -137,6 +155,8 @@ class Config:
             "login": LoginConfig,
             "portscan": PortScanConfig,
             "access": AccessControlConfig,
+            "discovery": DiscoveryConfig,
+            "nuclei": NucleiConfig,
         }
         kwargs: Dict[str, Any] = {}
         for f in fields(cls):

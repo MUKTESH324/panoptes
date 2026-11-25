@@ -22,7 +22,7 @@ import httpx
 PASSIVE_PLUGINS = ["security-headers", "cookie-flags", "info-disclosure", "csrf", "jwt", "dom-xss"]
 ACTIVE_PLUGINS = [
     "cors-misconfig", "open-redirect", "reflected-xss", "sqli-error", "ssrf",
-    "ssti", "path-traversal", "command-injection", "exposed-files",
+    "ssti", "path-traversal", "command-injection", "exposed-files", "graphql",
 ]
 
 _WAF_SIGNS = {

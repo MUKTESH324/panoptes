@@ -119,6 +119,13 @@ def build_parser() -> argparse.ArgumentParser:
     h.add_argument("--login-pass-field", help="login form password field name (auto-detected if omitted)")
     h.add_argument("--login-success", metavar="TEXT",
                    help="text present in the response only when login succeeded")
+    h.add_argument("--login-logged-out", metavar="TEXT",
+                   help="text shown when logged out; enables mid-scan session re-auth")
+    h.add_argument("--discover", action="store_true",
+                   help="content + parameter discovery (wordlist brute-forcing)")
+    h.add_argument("--wordlist", metavar="FILE", help="custom content-discovery wordlist")
+    h.add_argument("--nuclei", action="store_true",
+                   help="also run nuclei against the target (needs the nuclei binary)")
     h.add_argument("--access-control", action="store_true",
                    help="run access-control checks (auth-vs-anonymous; IDOR with a second identity)")
     h.add_argument("--idor-cookie", action="append", default=[], metavar="'name=value'",
@@ -215,6 +222,16 @@ def _load_config(args: argparse.Namespace) -> Config:
             cfg.login.password_field = args.login_pass_field
         if getattr(args, "login_success", None):
             cfg.login.success_indicator = args.login_success
+        if getattr(args, "login_logged_out", None):
+            cfg.login.logged_out_indicator = args.login_logged_out
+
+    # Discovery / nuclei (hunt only).
+    if getattr(args, "discover", False):
+        cfg.discovery.enabled = True
+    if getattr(args, "wordlist", None):
+        cfg.discovery.wordlist = args.wordlist
+    if getattr(args, "nuclei", False):
+        cfg.nuclei.enabled = True
 
     # Access-control / IDOR (hunt only).
     if getattr(args, "access_control", False):

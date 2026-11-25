@@ -24,10 +24,22 @@ _LINK_RE = re.compile(
 
 
 class Crawler:
-    def __init__(self, client: ScopedHttpClient, scope: Scope, config: CrawlConfig) -> None:
+    def __init__(
+        self,
+        client: ScopedHttpClient,
+        scope: Scope,
+        config: CrawlConfig,
+        relogin=None,
+        logged_out_marker: str = "",
+    ) -> None:
         self.client = client
         self.scope = scope
         self.config = config
+        # Session re-auth: if a page looks logged out and `relogin` is set,
+        # call it and retry the request once.
+        self.relogin = relogin
+        self.logged_out_marker = logged_out_marker
+        self.reauth_count = 0
 
     async def crawl(self, start_url: str) -> Dict[str, httpx.Response]:
         """Return a mapping of discovered in-scope URL -> its GET response."""
@@ -45,6 +57,7 @@ class Crawler:
 
             try:
                 resp = await self.client.get(url)
+                resp = await self._maybe_reauth(url, resp)
             except OutOfScopeError:
                 continue
             except Exception:  # noqa: BLE001 - unreachable page, skip
@@ -68,6 +81,23 @@ class Crawler:
                 queue.append((link, depth + 1))
 
         return results
+
+    async def _maybe_reauth(self, url: str, resp: httpx.Response) -> httpx.Response:
+        """If the page looks logged out, re-login and retry once."""
+        if not (self.relogin and self.logged_out_marker):
+            return resp
+        try:
+            body = resp.text[:200_000]
+        except Exception:  # noqa: BLE001
+            return resp
+        if self.logged_out_marker not in body:
+            return resp
+        try:
+            await self.relogin()
+            self.reauth_count += 1
+            return await self.client.get(url)
+        except Exception:  # noqa: BLE001
+            return resp
 
     def _extract_links(self, base: str, resp: httpx.Response) -> List[str]:
         try:

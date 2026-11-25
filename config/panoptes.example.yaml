@@ -60,6 +60,20 @@ access:
   idor_headers: {}        # a SECOND identity (user B) for IDOR comparison
   idor_cookies: {}        # e.g. {"session": "<user-B-session>"}
 
+# Content / parameter discovery (wordlist brute-forcing).
+discovery:
+  enabled: false
+  wordlist: ""            # path to a custom wordlist (built-in list if blank)
+  params: ""              # path to a custom parameter list (built-in if blank)
+  max_words: 400
+  max_params: 120
+
+# Optional nuclei integration (needs the nuclei binary installed).
+nuclei:
+  enabled: false
+  timeout: 300
+  extra_args: []          # e.g. ["-tags", "cve,exposure"]
+
 # Optional port-scan recon (used by `hunt` when enabled, or the `portscan`
 # command). Uses nmap if installed, otherwise a built-in TCP connect scan.
 portscan:

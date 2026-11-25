@@ -122,12 +122,25 @@ class Hunt:
                 if not login_res.ok:
                     result.errors.append(f"login macro: {login_res.message}")
 
-            crawler = Crawler(client, self.scope, self.config.crawl)
+            # Session re-auth: re-login if a page looks logged out mid-crawl.
+            relogin = None
+            if self.config.login.active and self.config.login.logged_out_indicator:
+                async def relogin() -> None:
+                    from .login import perform_login
+                    await perform_login(client, self.config.login)
+
+            crawler = Crawler(
+                client, self.scope, self.config.crawl,
+                relogin=relogin,
+                logged_out_marker=self.config.login.logged_out_indicator,
+            )
             try:
                 pages = await crawler.crawl(self.config.target)
             except Exception as exc:  # noqa: BLE001
                 result.errors.append(f"crawl failed: {exc}")
                 pages = {}
+            if crawler.reauth_count:
+                result.meta["reauth_count"] = crawler.reauth_count
             if self.config.target not in pages:
                 try:
                     pages[self.config.target] = await client.get(self.config.target)
@@ -137,6 +150,11 @@ class Hunt:
             # Optional JS-rendering discovery (headless browser) to expand surface.
             if self.config.crawl.render:
                 await self._render_discover(client, pages, result)
+
+            # Content / parameter discovery (adds discovered URLs to the surface).
+            discovery_findings: List[Finding] = []
+            if self.config.discovery.enabled:
+                discovery_findings = await self._discovery_pass(client, pages, result)
 
             # Snapshot the session (e.g. a login cookie) for post-crawl passes.
             self._session_cookies = client.session_cookies()
@@ -157,7 +175,7 @@ class Hunt:
                     ph.plugins = [p for p in ph.plugins if p in set(self.config.plugins)]
             result.plan = plan
 
-            raw: List[Finding] = []
+            raw: List[Finding] = list(discovery_findings)
             for phase in plan.phases:
                 plugins = select(include=phase.plugins, exclude=self.config.exclude_plugins or None)
                 for url, response in pages.items():
@@ -196,6 +214,17 @@ class Hunt:
         if self.config.stored_xss:
             await self._stored_xss_pass(pages, raw, result)
 
+        # Optional nuclei pass (known-CVE / templated coverage).
+        if self.config.nuclei.enabled:
+            from .nuclei import run_nuclei
+            nf, nerr = await run_nuclei(
+                self.config.target, self.config.nuclei.timeout,
+                self.config.nuclei.extra_args or None,
+            )
+            raw.extend(nf)
+            result.errors.extend(nerr)
+            result.meta["nuclei"] = len(nf)
+
         findings = dedupe_findings(raw)
 
         # Validation gate.
@@ -219,6 +248,32 @@ class Hunt:
 
         result.finished_at = time.time()
         return result
+
+    async def _discovery_pass(self, client, pages, result) -> List[Finding]:
+        from .discovery import (
+            discover_content,
+            discover_params,
+            load_params,
+            load_wordlist,
+        )
+
+        findings: List[Finding] = []
+        cfg = self.config.discovery
+        try:
+            findings += await discover_content(
+                self.config.target, client, pages,
+                load_wordlist(cfg.wordlist or None), cfg.max_words,
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(f"content discovery failed: {exc}")
+        try:
+            findings += await discover_params(
+                self.config.target, client,
+                load_params(cfg.params or None), cfg.max_params,
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(f"parameter discovery failed: {exc}")
+        return findings
 
     async def _render_discover(self, client, pages, result) -> None:
         """Use a headless browser to discover more in-scope URLs, then fetch them."""
