@@ -179,9 +179,12 @@ panoptes hunt https://app.example.com --i-am-authorized \
   any hidden/CSRF fields, and verifies success via `--login-success`.
 - **Missing-authentication** check: sensitive pages that an anonymous user can
   still reach are flagged (`CWE-306`).
-- **IDOR** check: object-specific URLs that a *second* user's session can read
-  are flagged (`CWE-639`). Both are reported as **needs-review** (tentative) —
-  deciding what's meant to be public is a human call.
+- With a second identity, three authorization checks run in one pass:
+  **IDOR** (object-level, `CWE-639`), **vertical privilege escalation**
+  (function-level — a lower-privileged account reaching admin pages, `CWE-269`),
+  and **multi-tenant isolation** (a different-tenant account reaching
+  tenant-scoped data, `CWE-639`). Point `--idor-cookie` at a lower-privileged /
+  different-tenant account to exercise them. All are **needs-review** (tentative).
 
 > Credentials on the command line are visible in your process list — prefer a
 > `login:` block in a config file, and use a throwaway/test account.

@@ -406,8 +406,11 @@ class Hunt:
                 result.errors.append(f"access-control (missing-auth) failed: {exc}")
 
         if self.config.access.has_second_identity:
-            from .access import find_idor
-            from .config import AuthConfig
+            from .access import (
+                find_idor,
+                find_privilege_escalation,
+                find_tenant_isolation,
+            )
             auth_b = AuthConfig(
                 headers=self.config.access.idor_headers,
                 cookies=self.config.access.idor_cookies,
@@ -417,9 +420,14 @@ class Hunt:
                     self.scope, self.config.http, auth=auth_b,
                     cookie_domain=hostname(self.config.target),
                 ) as client_b:
+                    # The second identity exercises object-level (IDOR),
+                    # function-level (privilege escalation) and tenant-level
+                    # (multi-tenant) authorization in one pass.
                     raw.extend(await find_idor(pages, client_b))
+                    raw.extend(await find_privilege_escalation(pages, client_b))
+                    raw.extend(await find_tenant_isolation(pages, client_b))
             except Exception as exc:  # noqa: BLE001
-                result.errors.append(f"access-control (idor) failed: {exc}")
+                result.errors.append(f"access-control (authz) failed: {exc}")
 
     def as_scan_result(self, hunt: HuntResult) -> ScanResult:
         """Adapt a HuntResult to a ScanResult for the standard renderers."""
