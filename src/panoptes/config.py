@@ -113,6 +113,14 @@ class NucleiConfig:
 
 
 @dataclass
+class OobConfig:
+    enabled: bool = False
+    host: str = "127.0.0.1"   # address the target should call back to (advertised)
+    port: int = 0             # 0 = pick a free port
+    grace: float = 3.0        # seconds to wait for async callbacks
+
+
+@dataclass
 class AccessControlConfig:
     """Access-control / IDOR testing options."""
 
@@ -133,6 +141,7 @@ class Config:
     exclude_plugins: List[str] = field(default_factory=list)
     stored_xss: bool = False  # opt-in: submits benign test data to forms
     auth_ratelimit: bool = False  # opt-in: sends failed logins to test throttling
+    verify_xss: bool = False  # opt-in: browser-confirm XSS execution (needs Playwright)
     http: HttpConfig = field(default_factory=HttpConfig)
     crawl: CrawlConfig = field(default_factory=CrawlConfig)
     ai: AIConfig = field(default_factory=AIConfig)
@@ -143,6 +152,7 @@ class Config:
     access: AccessControlConfig = field(default_factory=AccessControlConfig)
     discovery: DiscoveryConfig = field(default_factory=DiscoveryConfig)
     nuclei: NucleiConfig = field(default_factory=NucleiConfig)
+    oob: OobConfig = field(default_factory=OobConfig)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Config":
@@ -158,6 +168,7 @@ class Config:
             "access": AccessControlConfig,
             "discovery": DiscoveryConfig,
             "nuclei": NucleiConfig,
+            "oob": OobConfig,
         }
         kwargs: Dict[str, Any] = {}
         for f in fields(cls):

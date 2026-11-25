@@ -19,7 +19,7 @@ from typing import List, Optional
 from .ai import AIProvider, build_provider
 from .brain import Brain, RunDiff
 from .chains import Chain, ChainBuilder
-from .config import Config
+from .config import AuthConfig, Config
 from .crawler import Crawler
 from .http_client import ScopedHttpClient
 from .models import Finding, ScanResult
@@ -215,6 +215,14 @@ class Hunt:
         if self.config.stored_xss:
             await self._stored_xss_pass(pages, raw, result)
 
+        # Browser-driven XSS confirmation (opt-in; needs Playwright).
+        if self.config.verify_xss:
+            await self._verify_xss_pass(pages, raw, result)
+
+        # Out-of-band SSRF confirmation with the bundled listener (opt-in).
+        if self.config.oob.enabled:
+            await self._ssrf_oob_pass(pages, raw, result)
+
         # Auth rate-limit pass (opt-in: sends failed logins for a random user).
         if self.config.auth_ratelimit and self.config.login.url:
             from .authratelimit import check_auth_rate_limit
@@ -265,6 +273,57 @@ class Hunt:
 
         result.finished_at = time.time()
         return result
+
+    async def _verify_xss_pass(self, pages, raw, result) -> None:
+        from .xss_verify import XssVerifier, verify_reflected, verify_stored
+        if not XssVerifier.available():
+            result.meta["xss_verify"] = False
+            result.errors.append(
+                "verify-xss requested but Playwright is not installed "
+                "(pip install 'panoptes-scanner[browser]' && playwright install chromium)"
+            )
+            return
+        verifier = XssVerifier(
+            self.scope, timeout=self.config.http.timeout,
+            cookies={**self.config.auth.cookies, **self._session_cookies},
+        )
+        try:
+            raw.extend(await verify_reflected(list(pages), verifier))
+            if self.config.stored_xss:
+                auth = AuthConfig(
+                    headers=dict(self.config.auth.headers),
+                    cookies={**self.config.auth.cookies, **self._session_cookies},
+                )
+                async with ScopedHttpClient(
+                    self.scope, self.config.http, auth=auth,
+                    cookie_domain=hostname(self.config.target),
+                ) as client:
+                    raw.extend(await verify_stored(pages, verifier, client))
+            result.meta["xss_verify"] = True
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(f"xss verification failed: {exc}")
+
+    async def _ssrf_oob_pass(self, pages, raw, result) -> None:
+        from .oob import OobListener
+        from .ssrf_oob import run_ssrf_oob
+        listener = OobListener(advertise_host=self.config.oob.host,
+                               port=self.config.oob.port)
+        try:
+            listener.start()
+            auth = AuthConfig(
+                headers=dict(self.config.auth.headers),
+                cookies={**self.config.auth.cookies, **self._session_cookies},
+            )
+            async with ScopedHttpClient(
+                self.scope, self.config.http, auth=auth,
+                cookie_domain=hostname(self.config.target),
+            ) as client:
+                raw.extend(await run_ssrf_oob(pages, client, listener, self.config.oob.grace))
+            result.meta["oob_interactions"] = len(listener.interactions())
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(f"ssrf-oob pass failed: {exc}")
+        finally:
+            listener.stop()
 
     async def _discovery_pass(self, client, pages, result) -> List[Finding]:
         from .discovery import (
@@ -320,7 +379,6 @@ class Hunt:
         result.meta["rendered_urls_added"] = added
 
     async def _stored_xss_pass(self, pages, raw, result) -> None:
-        from .config import AuthConfig
         from .stored_xss import find_stored_xss
 
         auth = AuthConfig(

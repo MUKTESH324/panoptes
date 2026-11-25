@@ -109,6 +109,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="test for stored XSS by submitting benign markers to forms (writes test data)")
     h.add_argument("--auth-ratelimit", action="store_true",
                    help="test login throttling with failed logins for a random user (needs --login-url)")
+    h.add_argument("--verify-xss", action="store_true",
+                   help="browser-confirm XSS execution with a headless browser (needs Playwright)")
+    h.add_argument("--ssrf-oob", action="store_true",
+                   help="confirm blind SSRF with a bundled out-of-band listener")
+    h.add_argument("--oob-host", metavar="ADDR",
+                   help="address the target should call back to for OOB (default 127.0.0.1)")
+    h.add_argument("--oob-port", type=int, help="port for the OOB listener (default: free port)")
     h.add_argument("--insecure", action="store_true", help="do not verify TLS certs")
     h.add_argument("--header", "-H", action="append", default=[], metavar="'Name: Value'",
                    help="extra header sent on every request (repeatable)")
@@ -202,6 +209,14 @@ def _load_config(args: argparse.Namespace) -> Config:
         cfg.stored_xss = True
     if getattr(args, "auth_ratelimit", False):
         cfg.auth_ratelimit = True
+    if getattr(args, "verify_xss", False):
+        cfg.verify_xss = True
+    if getattr(args, "ssrf_oob", False):
+        cfg.oob.enabled = True
+    if getattr(args, "oob_host", None):
+        cfg.oob.host = args.oob_host
+    if getattr(args, "oob_port", None):
+        cfg.oob.port = args.oob_port
     if args.ai_provider:
         cfg.ai.enabled = args.ai_provider != "null"
         cfg.ai.provider = args.ai_provider

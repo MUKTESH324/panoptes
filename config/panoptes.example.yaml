@@ -79,6 +79,14 @@ nuclei:
   timeout: 300
   extra_args: []          # e.g. ["-tags", "cve,exposure"]
 
+# Out-of-band SSRF confirmation (bundled listener). The target must be able to
+# reach `host`; use a public/reachable address for remote targets. CLI: --ssrf-oob
+oob:
+  enabled: false
+  host: "127.0.0.1"       # address the target should call back to
+  port: 0                 # 0 = pick a free port
+  grace: 3.0              # seconds to wait for async callbacks
+
 # Optional port-scan recon (used by `hunt` when enabled, or the `portscan`
 # command). Uses nmap if installed, otherwise a built-in TCP connect scan.
 portscan:

@@ -186,6 +186,26 @@ panoptes hunt https://app.example.com --i-am-authorized \
 > Credentials on the command line are visible in your process list — prefer a
 > `login:` block in a config file, and use a throwaway/test account.
 
+### Confirmation layer: browser XSS proof & OOB SSRF
+
+```bash
+# Browser-confirm XSS actually executes (headless Chromium), upgrading heuristic
+# hits to CERTAIN — proof of execution, not just reflection (needs Playwright)
+panoptes hunt https://example.com --i-am-authorized --verify-xss
+
+# Confirm BLIND SSRF with a bundled out-of-band listener (no external collaborator)
+panoptes hunt https://example.com --i-am-authorized --ssrf-oob --oob-host 203.0.113.9
+```
+
+- `--verify-xss` re-injects an executing payload (`window.__panoptes_xss=1`),
+  loads the page in headless Chromium, and reports **CERTAIN** reflected/stored
+  XSS only when the script truly runs in the DOM.
+- `--ssrf-oob` starts a bundled HTTP listener, injects tokenised URLs pointing at
+  it into URL-like parameters, and reports **confirmed** blind SSRF for every
+  token the target actually calls back — no third-party collaborator needed. The
+  target must be able to reach the listener; pass `--oob-host` with an address it
+  can reach (defaults to `127.0.0.1` for local targets).
+
 ### JS-rendering crawler & stored XSS
 
 ```bash
