@@ -45,6 +45,9 @@ def render_hunt_markdown(hunt) -> str:
             f"- **WAF:** {hunt.signals.get('waf') or 'none detected'}",
         ]
 
+    if getattr(hunt, "ai_analysis", ""):
+        lines += ["", "## AI analyst summary", "", hunt.ai_analysis]
+
     # Plan
     lines += ["", "## Attack plan", ""]
     if hunt.plan:
@@ -198,6 +201,11 @@ def render_hunt_html(hunt) -> str:
         meta_bits.append(f"{len(hunt.chains)} chains")
 
     sections = []
+
+    # AI analyst executive summary (if generated).
+    if getattr(hunt, "ai_analysis", ""):
+        prose = e(hunt.ai_analysis).replace("\n\n", "</p><p>").replace("\n", "<br>")
+        sections.append(f'<h2>AI analyst summary</h2><div class="ai"><p>{prose}</p></div>')
 
     # Confirmed / high-confidence findings first.
     if confirmed:

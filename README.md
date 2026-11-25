@@ -70,16 +70,17 @@ architecture** that makes new checks a few lines of code.
   prioritized, tool-by-tool checklist.
 - 🔐 **Authenticated scanning** — session cookies / headers, bound to the target
   host and kept out of logs and reports.
-- 🤖 **Pluggable AI** — optional payload generation via OpenAI-compatible,
-  Anthropic, or local **Ollama** models, with automatic failover. Runs fully
-  without any API key.
+- 🤖 **Pluggable AI** — optional payload generation **and** an AI analyst that
+  writes an executive summary + prioritized risk/remediation narrative from the
+  findings (`--ai-report`). OpenAI-compatible, Anthropic, or local **Ollama**,
+  with automatic failover. Runs fully without any API key.
 - 🎯 **Payload library** — a structured, data-driven payload set (XSS, SQLi,
   SSTI, LFI, SSRF, open-redirect) with unique per-probe markers.
 - 🕸️ **Async engine** — concurrency limits + a token-bucket rate limiter so you
   stay polite and in control.
 - 📊 **Real reports** — SARIF for GitHub code scanning / CI, plus
   HackerOne-style Markdown and a self-contained HTML report.
-- ✅ **Tested** — 181 unit/integration tests, lint, type-check, and
+- ✅ **Tested** — 191 unit/integration tests, lint, type-check, and
   CI across Python 3.9–3.12.
 
 ## Install

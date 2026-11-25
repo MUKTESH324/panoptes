@@ -34,6 +34,16 @@ class FailoverProvider(AIProvider):
                 return payloads
         return []
 
+    async def analyze(self, prompt: str, system: str = "") -> str:
+        for provider in self.providers:
+            try:
+                out = await provider.analyze(prompt, system)
+            except Exception:  # noqa: BLE001
+                continue
+            if out.strip():
+                return out
+        return ""
+
     async def aclose(self) -> None:
         for p in self.providers:
             await p.aclose()

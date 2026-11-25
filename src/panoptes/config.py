@@ -142,6 +142,7 @@ class Config:
     stored_xss: bool = False  # opt-in: submits benign test data to forms
     auth_ratelimit: bool = False  # opt-in: sends failed logins to test throttling
     verify_xss: bool = False  # opt-in: browser-confirm XSS execution (needs Playwright)
+    ai_report: bool = False  # opt-in: LLM executive-summary analyst (needs an AI provider)
     http: HttpConfig = field(default_factory=HttpConfig)
     crawl: CrawlConfig = field(default_factory=CrawlConfig)
     ai: AIConfig = field(default_factory=AIConfig)

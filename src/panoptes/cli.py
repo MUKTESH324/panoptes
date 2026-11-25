@@ -111,6 +111,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="test login throttling with failed logins for a random user (needs --login-url)")
     h.add_argument("--verify-xss", action="store_true",
                    help="browser-confirm XSS execution with a headless browser (needs Playwright)")
+    h.add_argument("--ai-report", action="store_true",
+                   help="add an LLM executive summary of the findings (needs --ai-provider)")
     h.add_argument("--ssrf-oob", action="store_true",
                    help="confirm blind SSRF with a bundled out-of-band listener")
     h.add_argument("--oob-host", metavar="ADDR",
@@ -211,6 +213,8 @@ def _load_config(args: argparse.Namespace) -> Config:
         cfg.auth_ratelimit = True
     if getattr(args, "verify_xss", False):
         cfg.verify_xss = True
+    if getattr(args, "ai_report", False):
+        cfg.ai_report = True
     if getattr(args, "ssrf_oob", False):
         cfg.oob.enabled = True
     if getattr(args, "oob_host", None):

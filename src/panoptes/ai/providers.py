@@ -14,7 +14,7 @@ from typing import List
 
 import httpx
 
-from .base import SYSTEM_PROMPT, AIProvider, PayloadRequest
+from .base import ANALYST_SYSTEM, SYSTEM_PROMPT, AIProvider, PayloadRequest
 
 
 def _parse_payloads(text: str, limit: int) -> List[str]:
@@ -79,6 +79,26 @@ class OpenAIProvider(AIProvider):
             content = resp.json()["choices"][0]["message"]["content"]
         return _parse_payloads(content, request.max_payloads)
 
+    async def analyze(self, prompt: str, system: str = "") -> str:
+        if not self.api_key:
+            return ""
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system or ANALYST_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.3,
+        }
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=payload,
+            )
+            resp.raise_for_status()
+            return str(resp.json()["choices"][0]["message"]["content"])
+
 
 class AnthropicProvider(AIProvider):
     name = "anthropic"
@@ -111,6 +131,25 @@ class AnthropicProvider(AIProvider):
             content = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
         return _parse_payloads(content, request.max_payloads)
 
+    async def analyze(self, prompt: str, system: str = "") -> str:
+        if not self.api_key:
+            return ""
+        payload = {
+            "model": self.model,
+            "max_tokens": 1500,
+            "system": system or ANALYST_SYSTEM,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"{self.base_url}/messages",
+                headers={"x-api-key": self.api_key, "anthropic-version": "2023-06-01"},
+                json=payload,
+            )
+            resp.raise_for_status()
+            blocks = resp.json().get("content", [])
+            return "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
+
 
 class OllamaProvider(AIProvider):
     """Local models via Ollama — no API key, nothing leaves the host."""
@@ -135,3 +174,17 @@ class OllamaProvider(AIProvider):
         except Exception:  # noqa: BLE001 - local daemon may be down
             return []
         return _parse_payloads(content, request.max_payloads)
+
+    async def analyze(self, prompt: str, system: str = "") -> str:
+        payload = {
+            "model": self.model,
+            "prompt": (system or ANALYST_SYSTEM) + "\n\n" + prompt,
+            "stream": False,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                resp = await client.post(f"{self.base_url}/api/generate", json=payload)
+                resp.raise_for_status()
+                return str(resp.json().get("response", ""))
+        except Exception:  # noqa: BLE001
+            return ""

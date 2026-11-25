@@ -29,13 +29,17 @@ class PayloadRequest:
 
 
 class AIProvider(abc.ABC):
-    """Base class for LLM payload providers."""
+    """Base class for LLM providers (payload generation + analysis)."""
 
     name: str = "base"
 
     @abc.abstractmethod
     async def generate(self, request: PayloadRequest) -> List[str]:
         """Return a list of candidate payload strings (possibly empty)."""
+
+    async def analyze(self, prompt: str, system: str = "") -> str:
+        """Freeform completion used for the AI analyst. Default: no-op."""
+        return ""
 
     async def aclose(self) -> None:  # pragma: no cover - optional override
         return None
@@ -55,4 +59,14 @@ SYSTEM_PROMPT = (
     "scanner. Given a vulnerability class, a parameter name and context, return "
     "a concise JSON array of detection payloads (strings only). Payloads must be "
     "non-destructive probes suitable for authorized testing. Return JSON only."
+)
+
+ANALYST_SYSTEM = (
+    "You are a senior application security analyst reviewing the output of an "
+    "AUTHORIZED, non-destructive web vulnerability scan. Given a digest of "
+    "findings, write a concise report for the engineering team: an executive "
+    "summary, the top risks in priority order with brief rationale, and a short "
+    "remediation roadmap. Be factual and do not invent findings beyond the "
+    "digest. Do not provide exploitation instructions — focus on risk and fixes. "
+    "Plain prose with short headings; no code."
 )

@@ -47,6 +47,7 @@ class HuntResult:
     diff: Optional[RunDiff] = None
     ports: Optional["PortScanResult"] = None
     recommendations: List["Recommendation"] = field(default_factory=list)
+    ai_analysis: str = ""
     errors: List[str] = field(default_factory=list)
     meta: dict = field(default_factory=dict)
 
@@ -77,6 +78,7 @@ class HuntResult:
             "diff": self.diff.to_dict() if self.diff else None,
             "ports": self.ports.to_dict() if self.ports else None,
             "recommendations": [r.to_dict() for r in self.recommendations],
+            "ai_analysis": self.ai_analysis,
             "errors": self.errors,
             "meta": self.meta,
         }
@@ -264,6 +266,14 @@ class Hunt:
 
         # Recommended next steps from findings + open ports.
         result.recommendations = recommend(kept, result.ports)
+
+        # Optional AI analyst executive summary (opt-in; needs an AI provider).
+        if self.config.ai_report and self.config.ai.enabled:
+            from .analyst import analyze_hunt
+            try:
+                result.ai_analysis = await analyze_hunt(result, provider)
+            except Exception as exc:  # noqa: BLE001
+                result.errors.append(f"ai report failed: {exc}")
 
         # Persist + diff.
         if self.brain is not None:
