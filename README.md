@@ -79,7 +79,7 @@ architecture** that makes new checks a few lines of code.
   stay polite and in control.
 - 📊 **Real reports** — SARIF for GitHub code scanning / CI, plus
   HackerOne-style Markdown and a self-contained HTML report.
-- ✅ **Tested** — 74 unit/integration tests, lint, type-check, and
+- ✅ **Tested** — 181 unit/integration tests, lint, type-check, and
   CI across Python 3.9–3.12.
 
 ## Install
