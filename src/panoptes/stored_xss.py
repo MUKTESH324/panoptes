@@ -20,6 +20,7 @@ import httpx
 
 from .models import Confidence, Finding, Severity
 from .utils.forms import parse_forms
+from .utils.http import response_text
 
 
 async def find_stored_xss(pages: Dict[str, httpx.Response], client) -> List[Finding]:
@@ -30,7 +31,7 @@ async def find_stored_xss(pages: Dict[str, httpx.Response], client) -> List[Find
     for url, resp in pages.items():
         if "html" not in resp.headers.get("content-type", "").lower():
             continue
-        for form in parse_forms(_text(resp)):
+        for form in parse_forms(response_text(resp)):
             if not form.text_fields:
                 continue
             data = dict(form.hidden)
@@ -58,7 +59,7 @@ async def find_stored_xss(pages: Dict[str, httpx.Response], client) -> List[Find
             continue
         if "html" not in resp.headers.get("content-type", "").lower():
             continue
-        if payload in _text(resp) and url not in seen:
+        if payload in response_text(resp) and url not in seen:
             seen.add(url)
             findings.append(
                 Finding(
@@ -84,9 +85,3 @@ async def find_stored_xss(pages: Dict[str, httpx.Response], client) -> List[Find
             )
     return findings
 
-
-def _text(resp) -> str:
-    try:
-        return resp.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""

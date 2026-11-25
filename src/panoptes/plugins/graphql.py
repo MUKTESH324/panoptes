@@ -13,6 +13,7 @@ from typing import Set
 from urllib.parse import urlsplit
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from .base import Plugin, ScanContext, register
 
 _PATHS = [
@@ -49,7 +50,7 @@ class GraphQL(Plugin):
                 resp = await ctx.client.post(url, json=_INTROSPECTION)
             except Exception:  # noqa: BLE001
                 continue
-            body = _safe_text(resp)
+            body = response_text(resp)
             looks_graphql = (
                 '"data"' in body or '"errors"' in body or "__schema" in body
             )
@@ -92,9 +93,3 @@ class GraphQL(Plugin):
             )
             return
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:200_000]
-    except Exception:  # noqa: BLE001
-        return ""

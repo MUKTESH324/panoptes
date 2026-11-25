@@ -10,13 +10,14 @@ from __future__ import annotations
 import re
 from collections import deque
 from typing import Dict, List, Set, Tuple
-from urllib.parse import urldefrag, urljoin, urlsplit
+from urllib.parse import urldefrag, urljoin
 
 import httpx
 
 from .config import CrawlConfig
 from .http_client import ScopedHttpClient
 from .scope import OutOfScopeError, Scope
+from .utils.urls import origin
 
 _LINK_RE = re.compile(
     r"""(?:href|src|action)\s*=\s*["']([^"'#>\s]+)["']""", re.IGNORECASE
@@ -40,10 +41,11 @@ class Crawler:
         self.relogin = relogin
         self.logged_out_marker = logged_out_marker
         self.reauth_count = 0
+        self.max_reauth = 3  # stop re-logging-in if the session stays broken
 
     async def crawl(self, start_url: str) -> Dict[str, httpx.Response]:
         """Return a mapping of discovered in-scope URL -> its GET response."""
-        start_origin = _origin(start_url)
+        start_origin = origin(start_url)
         seen: Set[str] = set()
         results: Dict[str, httpx.Response] = {}
         queue: deque[Tuple[str, int]] = deque([(start_url, 0)])
@@ -72,7 +74,7 @@ class Crawler:
             for link in self._extract_links(url, resp):
                 if link in seen:
                     continue
-                if self.config.same_origin_only and _origin(link) != start_origin:
+                if self.config.same_origin_only and origin(link) != start_origin:
                     continue
                 try:
                     self.scope.check_url(link)
@@ -86,6 +88,8 @@ class Crawler:
         """If the page looks logged out, re-login and retry once."""
         if not (self.relogin and self.logged_out_marker):
             return resp
+        if self.reauth_count >= self.max_reauth:
+            return resp  # session stays broken; stop hammering the login endpoint
         try:
             body = resp.text[:200_000]
         except Exception:  # noqa: BLE001
@@ -111,7 +115,3 @@ class Crawler:
             links.append(urljoin(base, raw))
         return links
 
-
-def _origin(url: str) -> str:
-    p = urlsplit(url)
-    return f"{p.scheme}://{p.netloc}".lower()

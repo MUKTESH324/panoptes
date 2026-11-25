@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from ..utils.inject import has_query_params, iter_param_injections
 from .base import Plugin, ScanContext, register
 
@@ -38,7 +39,7 @@ class SqliError(Plugin):
     async def check(self, ctx: ScanContext) -> None:
         if not has_query_params(ctx.url):
             return
-        baseline = _safe_text(ctx.response) if ctx.response is not None else ""
+        baseline = response_text(ctx.response) if ctx.response is not None else ""
         baseline_has_error = bool(_SQL_RE.search(baseline))
         if baseline_has_error:
             return  # pre-existing error, cannot attribute to our probe
@@ -48,7 +49,7 @@ class SqliError(Plugin):
                 resp = await ctx.client.get(mutated)
             except Exception:  # noqa: BLE001
                 continue
-            body = _safe_text(resp)
+            body = response_text(resp)
             match = _SQL_RE.search(body)
             if match:
                 self._report(
@@ -71,9 +72,3 @@ class SqliError(Plugin):
                     tags=["sqli", "injection", "active"],
                 )
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""

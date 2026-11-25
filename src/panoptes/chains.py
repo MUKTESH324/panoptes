@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List
-from urllib.parse import urlsplit
 
 from .models import Finding, Severity
+from .utils.urls import hostname
 
 
 @dataclass
@@ -134,7 +134,7 @@ class ChainBuilder:
         # Group by host so a chain only links issues on the same origin.
         by_host: Dict[str, List[Finding]] = {}
         for f in findings:
-            by_host.setdefault(_host(f.url), []).append(f)
+            by_host.setdefault(hostname(f.url), []).append(f)
 
         for host_findings in by_host.values():
             idx = _by_plugin(host_findings)
@@ -152,9 +152,3 @@ class ChainBuilder:
         chains.sort(key=lambda c: -int(c.severity))
         return chains
 
-
-def _host(url: str) -> str:
-    try:
-        return (urlsplit(url).hostname or "").lower()
-    except ValueError:
-        return ""

@@ -23,6 +23,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urlsplit
 
 from .scope import OutOfScopeError, Scope
+from .utils.urls import origin
 
 
 class BrowserCrawler:
@@ -46,7 +47,7 @@ class BrowserCrawler:
         except Exception as exc:  # noqa: BLE001
             return found, [f"Playwright unavailable: {exc}"]
 
-        origin = _origin(start_url)
+        start_origin = origin(start_url)
         host = urlsplit(start_url).hostname or ""
         try:
             async with async_playwright() as pw:
@@ -81,7 +82,7 @@ class BrowserCrawler:
                     for link in list(hrefs) + captured:
                         if self._in_scope(link):
                             found.add(link)
-                            if _origin(link) == origin and link not in seen:
+                            if origin(link) == start_origin and link not in seen:
                                 queue.append(link)
                     captured.clear()
                 await browser.close()
@@ -98,7 +99,3 @@ class BrowserCrawler:
         except Exception:  # noqa: BLE001
             return False
 
-
-def _origin(url: str) -> str:
-    p = urlsplit(url)
-    return f"{p.scheme}://{p.netloc}".lower()

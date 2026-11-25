@@ -27,6 +27,7 @@ import secrets
 from urllib.parse import parse_qsl, urlsplit
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from ..utils.inject import has_query_params, iter_param_injections
 from .base import Plugin, ScanContext, register
 
@@ -64,7 +65,7 @@ class SsrfProbe(Plugin):
         if not targets:
             return
 
-        baseline = _safe_text(ctx.response) if ctx.response is not None else ""
+        baseline = response_text(ctx.response) if ctx.response is not None else ""
         baseline_error = bool(_FETCH_ERROR_RE.search(baseline))
 
         token = secrets.token_hex(5)
@@ -78,7 +79,7 @@ class SsrfProbe(Plugin):
                 resp = await ctx.client.get(mutated)
             except Exception:  # noqa: BLE001
                 continue
-            body = _safe_text(resp)
+            body = response_text(resp)
             host_echoed_in_error = probe_host in body and bool(_FETCH_ERROR_RE.search(body))
             new_fetch_error = bool(_FETCH_ERROR_RE.search(body)) and not baseline_error
 
@@ -167,9 +168,3 @@ def _url_like_params(url: str) -> set:
             out.add(name)
     return out
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""

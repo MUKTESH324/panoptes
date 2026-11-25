@@ -21,6 +21,7 @@ import re
 from typing import Any, Dict, Optional
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from .base import Plugin, ScanContext, register
 
 # header.payload.signature — signature may be empty (alg=none).
@@ -42,7 +43,7 @@ class JwtChecks(Plugin):
         if ctx.response is not None:
             for _k, value in ctx.response.headers.items():
                 tokens.update(_JWT_RE.findall(value))
-            tokens.update(_JWT_RE.findall(_safe_text(ctx.response)))
+            tokens.update(_JWT_RE.findall(response_text(ctx.response)))
 
         for token in tokens:
             self._analyze(ctx, token, in_url=token in tokens_in_url)
@@ -133,9 +134,3 @@ def _decode_segment(seg: str) -> Optional[Dict[str, Any]]:
         return None
     return data if isinstance(data, dict) else None
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""

@@ -63,6 +63,16 @@ async def test_idor_flagged_on_numeric_path_segment():
     assert len(await find_idor(authed, FakeClient(handler))) == 1
 
 
+async def test_missing_auth_not_flagged_on_empty_bodies():
+    url = "https://example.com/account"
+    authed = {url: make_response(url, text="")}
+
+    def handler(u, kwargs):
+        return make_response(u, text="")  # both empty -> not enough to judge
+
+    assert await find_missing_auth(authed, FakeClient(handler)) == []
+
+
 async def test_idor_ignores_urls_without_object_ref():
     url = "https://example.com/home"
     authed = {url: make_response(url, text="homepage " * 10)}

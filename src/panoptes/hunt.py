@@ -29,6 +29,7 @@ from .portscan import PortScanner, PortScanResult
 from .recommend import Recommendation, recommend
 from .scope import Scope
 from .utils.dedupe import dedupe_findings
+from .utils.urls import hostname
 from .validation import ValidationGate, ValidationResult, Verdict
 
 
@@ -110,7 +111,7 @@ class Hunt:
             self.scope,
             self.config.http,
             auth=self.config.auth,
-            cookie_domain=_hostname(self.config.target),
+            cookie_domain=hostname(self.config.target),
         ) as client:
             # Login macro: authenticate before crawling so the whole scan is
             # performed as the logged-in user.
@@ -197,7 +198,7 @@ class Hunt:
                 concurrency=self.config.portscan.concurrency,
                 use_nmap=self.config.portscan.use_nmap,
             )
-            host = _hostname(self.config.target)
+            host = hostname(self.config.target)
             try:
                 port_result = await scanner.scan(host, self.config.portscan.ports or None)
                 result.ports = port_result
@@ -223,6 +224,10 @@ class Hunt:
             )
             raw.extend(nf)
             result.errors.extend(nerr)
+            result.errors.append(
+                "note: nuclei runs against the target directly and is not bound "
+                "by Panoptes' per-request scope/allowlist enforcement"
+            )
             result.meta["nuclei"] = len(nf)
 
         findings = dedupe_findings(raw)
@@ -313,7 +318,7 @@ class Hunt:
         try:
             async with ScopedHttpClient(
                 self.scope, self.config.http, auth=auth,
-                cookie_domain=_hostname(self.config.target),
+                cookie_domain=hostname(self.config.target),
             ) as client:
                 raw.extend(await find_stored_xss(pages, client))
         except Exception as exc:  # noqa: BLE001
@@ -340,7 +345,7 @@ class Hunt:
             try:
                 async with ScopedHttpClient(
                     self.scope, self.config.http, auth=auth_b,
-                    cookie_domain=_hostname(self.config.target),
+                    cookie_domain=hostname(self.config.target),
                 ) as client_b:
                     raw.extend(await find_idor(pages, client_b))
             except Exception as exc:  # noqa: BLE001
@@ -360,8 +365,3 @@ class Hunt:
             "diff": hunt.diff.to_dict() if hunt.diff else None,
         }
         return sr
-
-def _hostname(target: str) -> str:
-    from urllib.parse import urlsplit
-
-    return urlsplit(target).hostname or ""

@@ -20,6 +20,8 @@ from urllib.parse import urlencode, urlsplit, urlunsplit
 import httpx
 
 from .models import Confidence, Finding, Severity
+from .utils.http import response_text
+from .utils.urls import origin
 
 _WORDLIST = Path(__file__).parent / "data" / "wordlist.txt"
 _PARAMS = Path(__file__).parent / "data" / "params.txt"
@@ -43,30 +45,27 @@ def load_params(override: Optional[str] = None) -> List[str]:
     return _load_lines(_PARAMS, override)
 
 
-def _origin(url: str) -> str:
-    p = urlsplit(url)
-    return f"{p.scheme}://{p.netloc}"
-
 
 async def discover_content(
     target: str, client, pages: Dict[str, httpx.Response],
     wordlist: Optional[List[str]] = None, max_words: int = 400,
 ) -> List[Finding]:
-    origin = _origin(target)
+    root = origin(target)
     words = (wordlist if wordlist is not None else load_wordlist())[:max_words]
 
-    # Soft-404 baseline from a random path.
-    base_status, base_len = 404, 0
+    # Soft-404 baseline from a random path (length AND body content).
+    base_status, base_len, base_body = 404, 0, ""
     try:
-        base = await client.get(origin + "/" + secrets.token_hex(10))
-        base_status, base_len = base.status_code, len(_text(base))
+        base = await client.get(root + "/" + secrets.token_hex(10))
+        base_body = response_text(base)
+        base_status, base_len = base.status_code, len(base_body)
     except Exception:  # noqa: BLE001
         pass
 
     findings: List[Finding] = []
     for word in words:
         path = "/" + word.lstrip("/")
-        url = origin + path
+        url = root + path
         if url in pages:
             continue
         try:
@@ -75,10 +74,13 @@ async def discover_content(
             continue
         if resp.status_code not in (200, 201, 204, 301, 302, 307, 401, 403):
             continue
-        # Filter catch-all soft-404s (same status + near-identical length).
-        if (resp.status_code == base_status == 200
-                and abs(len(_text(resp)) - base_len) < 48):
-            continue
+        # Filter catch-all soft-404s: same status plus a near-identical length
+        # OR a body that closely matches the random-path baseline (handles
+        # catch-alls that echo the requested path, changing only the length).
+        if resp.status_code == base_status == 200:
+            body = response_text(resp)
+            if abs(len(body) - base_len) < 48 or _similar(body, base_body) >= 0.95:
+                continue
         sev = Severity.LOW if resp.status_code in (200, 401, 403) else Severity.INFO
         findings.append(
             Finding(
@@ -106,7 +108,7 @@ async def discover_params(
     marker = "pano" + secrets.token_hex(5)
     try:
         base = await client.get(target)
-        base_text = _text(base)
+        base_text = response_text(base)
     except Exception:  # noqa: BLE001
         return []
 
@@ -117,7 +119,7 @@ async def discover_params(
             resp = await client.get(test_url)
         except Exception:  # noqa: BLE001
             continue
-        body = _text(resp)
+        body = response_text(resp)
         if marker in body and marker not in base_text:
             findings.append(
                 Finding(
@@ -138,15 +140,19 @@ async def discover_params(
     return findings
 
 
+def _similar(a: str, b: str) -> float:
+    a, b = a[:3000], b[:3000]
+    if not a and not b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+    import difflib
+    return difflib.SequenceMatcher(None, a, b).ratio()
+
+
 def _with_param(url: str, name: str, value: str) -> str:
     parts = urlsplit(url)
     sep = "&" if parts.query else ""
     query = parts.query + sep + urlencode({name: value})
     return urlunsplit((parts.scheme, parts.netloc, parts.path, query, parts.fragment))
 
-
-def _text(resp) -> str:
-    try:
-        return resp.text[:300_000]
-    except Exception:  # noqa: BLE001
-        return ""

@@ -10,6 +10,7 @@ from __future__ import annotations
 import secrets
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from ..utils.inject import has_query_params, iter_param_injections
 from .base import Plugin, ScanContext, register
 
@@ -34,7 +35,7 @@ class ReflectedXSS(Plugin):
             ctype = resp.headers.get("content-type", "")
             if "html" not in ctype.lower():
                 continue
-            body = _safe_text(resp)
+            body = response_text(resp)
             if payload in body:
                 self._report(
                     ctx,
@@ -59,9 +60,3 @@ class ReflectedXSS(Plugin):
                     tags=["xss", "injection", "active"],
                 )
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""

@@ -14,6 +14,7 @@ from __future__ import annotations
 import re
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from .base import Plugin, ScanContext, register
 
 _FORM_RE = re.compile(r"<form\b([^>]*)>(.*?)</form>", re.IGNORECASE | re.DOTALL)
@@ -39,7 +40,7 @@ class CsrfForms(Plugin):
             return
         if "html" not in ctx.response.headers.get("content-type", "").lower():
             return
-        body = _safe_text(ctx.response)
+        body = response_text(ctx.response)
         reported = 0
         for attrs, inner in _FORM_RE.findall(body):
             if reported >= _MAX_PER_PAGE:
@@ -73,9 +74,3 @@ class CsrfForms(Plugin):
             )
             reported += 1
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""

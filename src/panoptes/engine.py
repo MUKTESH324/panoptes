@@ -14,6 +14,7 @@ from .models import ScanResult
 from .plugins.base import Plugin, ScanContext, select
 from .scope import Scope
 from .utils.dedupe import dedupe_findings
+from .utils.urls import hostname
 
 log = logging.getLogger("panoptes.engine")
 
@@ -46,7 +47,7 @@ class Engine:
             self.scope,
             self.config.http,
             auth=self.config.auth,
-            cookie_domain=_hostname(self.config.target),
+            cookie_domain=hostname(self.config.target),
         ) as client:
             crawler = Crawler(client, self.scope, self.config.crawl)
             try:
@@ -93,8 +94,3 @@ def _default_allow(target: str) -> List[str]:
 def scan(config: Config, scope: Optional[Scope] = None) -> ScanResult:
     """Synchronous convenience wrapper around :meth:`Engine.run`."""
     return asyncio.run(Engine(config, scope).run())
-
-def _hostname(target: str) -> str:
-    from urllib.parse import urlsplit
-
-    return urlsplit(target).hostname or ""

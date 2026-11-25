@@ -11,6 +11,7 @@ from __future__ import annotations
 import secrets
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from ..utils.inject import has_query_params, iter_param_injections
 from .base import Plugin, ScanContext, register
 
@@ -42,7 +43,7 @@ class SstiProbe(Plugin):
                     resp = await ctx.client.get(mutated)
                 except Exception:  # noqa: BLE001
                     continue
-                if expected in _safe_text(resp):
+                if expected in response_text(resp):
                     self._report(
                         ctx,
                         title=f"Server-side template injection in parameter '{param}'",
@@ -67,9 +68,3 @@ class SstiProbe(Plugin):
                     )
                     return  # one confirmation per URL is enough
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""

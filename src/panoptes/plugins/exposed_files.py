@@ -13,6 +13,7 @@ from typing import List, Optional, Set, Tuple
 from urllib.parse import urlsplit
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from .base import Plugin, ScanContext, register
 
 # (path, severity, signature-regex-or-None, title)
@@ -58,7 +59,7 @@ class ExposedFiles(Plugin):
                 continue
             if resp.status_code != 200:
                 continue
-            body = _safe_text(resp)
+            body = response_text(resp)
             if signature and not re.search(signature, body):
                 continue
             # security.txt presence is informational, not a weakness.
@@ -87,9 +88,3 @@ class ExposedFiles(Plugin):
                 site_wide=True,
             )
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:200_000]
-    except Exception:  # noqa: BLE001
-        return ""

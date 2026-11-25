@@ -39,6 +39,18 @@ async def test_discover_content_filters_soft_404():
     assert findings == []
 
 
+async def test_discover_content_filters_path_echoing_catchall():
+    def handler(url, kwargs):
+        # 200 for everything, body echoes the path but is otherwise identical.
+        path = urlsplit(url).path
+        return make_response(url, status=200,
+                             text=f"<h1>Page {path}</h1>" + " boilerplate content " * 20)
+
+    findings = await discover_content("https://example.com/", FakeClient(handler),
+                                      {}, ["admin", "login", "config"], 400)
+    assert findings == []
+
+
 async def test_discover_params_detects_reflected_param():
     def handler(url, kwargs):
         q = parse_qs(urlsplit(url).query)
@@ -128,3 +140,21 @@ async def test_crawler_reauths_on_logout():
     results = await crawler.crawl("https://example.com/")
     assert crawler.reauth_count == 1
     assert "Welcome" in results["https://example.com/"].text
+
+
+async def test_crawler_reauth_is_capped_when_login_stays_broken():
+    def handler(url, kwargs):
+        return make_response(url, headers={"content-type": "text/html"}, text="Please Sign in")
+
+    async def relogin():
+        pass  # never actually restores the session
+
+    c = Crawler(
+        FakeClient(handler), Scope(allow=["example.com"], authorized=True),
+        CrawlConfig(max_depth=0), relogin=relogin, logged_out_marker="Sign in",
+    )
+    r = make_response("https://example.com/", headers={"content-type": "text/html"},
+                      text="Please Sign in")
+    for _ in range(6):
+        await c._maybe_reauth("https://example.com/", r)
+    assert c.reauth_count == c.max_reauth == 3

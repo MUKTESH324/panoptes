@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from .base import Plugin, ScanContext, register
 
 _VERSION_RE = re.compile(r"\d+\.\d+")
@@ -50,7 +51,7 @@ class InfoDisclosure(Plugin):
                     site_wide=True,
                 )
 
-        body = _safe_text(ctx.response)
+        body = response_text(ctx.response)
         for sign in _STACK_SIGNS:
             if sign in body:
                 self._report(
@@ -72,9 +73,3 @@ class InfoDisclosure(Plugin):
                 )
                 break
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:200_000]
-    except Exception:  # noqa: BLE001
-        return ""

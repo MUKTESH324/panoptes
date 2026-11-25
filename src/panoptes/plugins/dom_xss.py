@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from .base import Plugin, ScanContext, register
 
 _SCRIPT_RE = re.compile(r"<script\b[^>]*>(.*?)</script>", re.IGNORECASE | re.DOTALL)
@@ -50,7 +51,7 @@ class DomXss(Plugin):
             return
         if "html" not in ctx.response.headers.get("content-type", "").lower():
             return
-        js = _extract_js(_safe_text(ctx.response))
+        js = _extract_js(response_text(ctx.response, limit=800_000))
         if not js:
             return
         source = _SOURCE_RE.search(js)
@@ -88,9 +89,3 @@ def _extract_js(html: str) -> str:
         parts.append(a or b)
     return "\n".join(parts)
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:800_000]
-    except Exception:  # noqa: BLE001
-        return ""

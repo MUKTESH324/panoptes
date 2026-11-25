@@ -26,6 +26,7 @@ from urllib.parse import parse_qsl, urlsplit
 import httpx
 
 from .models import Confidence, Finding, Severity
+from .utils.http import response_text
 
 _SENSITIVE_PATH = re.compile(
     r"account|admin|dashboard|settings|profile|user|order|invoice|api|private|"
@@ -39,6 +40,7 @@ _ID_PARAMS = {
 }
 _UUID_OR_NUM = re.compile(r"^[0-9]+$|^[0-9a-f]{8}-[0-9a-f]{4}-", re.IGNORECASE)
 _SIM_THRESHOLD = 0.9
+_MIN_BODY = 64  # don't judge access control on near-empty responses
 
 
 def _similar(a: str, b: str) -> float:
@@ -48,13 +50,6 @@ def _similar(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
     return difflib.SequenceMatcher(None, a, b).ratio()
-
-
-def _text(resp: httpx.Response) -> str:
-    try:
-        return resp.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""
 
 
 async def find_missing_auth(authed_pages: Dict[str, httpx.Response], anon_client) -> List[Finding]:
@@ -69,7 +64,10 @@ async def find_missing_auth(authed_pages: Dict[str, httpx.Response], anon_client
             continue
         if anon.status_code != 200:
             continue  # anonymous request was blocked/redirected — auth enforced
-        if _similar(_text(authed), _text(anon)) < _SIM_THRESHOLD:
+        a_text, b_text = response_text(authed), response_text(anon)
+        if len(a_text.strip()) < _MIN_BODY:
+            continue  # too little content to judge meaningfully
+        if _similar(a_text, b_text) < _SIM_THRESHOLD:
             continue  # anon got something different (e.g. a login page)
         findings.append(
             Finding(
@@ -105,7 +103,10 @@ async def find_idor(authed_pages: Dict[str, httpx.Response], other_client) -> Li
             continue
         if other.status_code != 200:
             continue
-        if _similar(_text(authed), _text(other)) < _SIM_THRESHOLD:
+        a_text, b_text = response_text(authed), response_text(other)
+        if len(a_text.strip()) < _MIN_BODY:
+            continue  # too little content to judge meaningfully
+        if _similar(a_text, b_text) < _SIM_THRESHOLD:
             continue
         findings.append(
             Finding(

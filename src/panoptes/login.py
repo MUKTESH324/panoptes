@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 from urllib.parse import urljoin
 
+from .utils.http import response_text
+
 _FORM_RE = re.compile(r"<form\b([^>]*)>(.*?)</form>", re.IGNORECASE | re.DOTALL)
 _INPUT_RE = re.compile(r"<input\b([^>]*?)/?>", re.IGNORECASE)
 _ATTR_RE = re.compile(r"""(\w[\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))""")
@@ -98,7 +100,7 @@ async def perform_login(client, config: "LoginConfig") -> LoginResult:
     except Exception as exc:  # noqa: BLE001
         return LoginResult(False, False, f"could not load login page: {exc}")
 
-    form = parse_login_form(_text(page), config.password_field)
+    form = parse_login_form(response_text(page), config.password_field)
     user_field = config.username_field or (form.username_field if form else "username")
     pass_field = config.password_field or (form.password_field if form else "password")
 
@@ -126,7 +128,7 @@ async def perform_login(client, config: "LoginConfig") -> LoginResult:
 
 
 def _verify(resp, config: "LoginConfig") -> Tuple[bool, bool]:
-    body = _text(resp)
+    body = response_text(resp)
     if config.success_indicator:
         return (config.success_indicator in body, True)
     if config.logged_out_indicator:
@@ -134,12 +136,6 @@ def _verify(resp, config: "LoginConfig") -> Tuple[bool, bool]:
     # No indicator: best-effort — a non-error status and we got here.
     return (resp.status_code < 400, False)
 
-
-def _text(resp) -> str:
-    try:
-        return resp.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""
 
 
 # Imported lazily to avoid a config<->login import cycle at module load.

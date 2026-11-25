@@ -12,6 +12,7 @@ import re
 from urllib.parse import parse_qsl, urlsplit
 
 from ..models import Confidence, Severity
+from ..utils.http import response_text
 from ..utils.inject import has_query_params, iter_param_injections
 from .base import Plugin, ScanContext, register
 
@@ -45,7 +46,7 @@ class PathTraversal(Plugin):
         targets = _file_like_params(ctx.url)
         if not targets:
             return
-        baseline = _safe_text(ctx.response) if ctx.response is not None else ""
+        baseline = response_text(ctx.response) if ctx.response is not None else ""
         if _SIGNATURE.search(baseline):
             return  # signature already present; cannot attribute to our probe
 
@@ -57,7 +58,7 @@ class PathTraversal(Plugin):
                     resp = await ctx.client.get(mutated)
                 except Exception:  # noqa: BLE001
                     continue
-                m = _SIGNATURE.search(_safe_text(resp))
+                m = _SIGNATURE.search(response_text(resp))
                 if m:
                     self._report(
                         ctx,
@@ -90,9 +91,3 @@ def _file_like_params(url: str) -> set:
             out.add(name)
     return out
 
-
-def _safe_text(response) -> str:
-    try:
-        return response.text[:500_000]
-    except Exception:  # noqa: BLE001
-        return ""
